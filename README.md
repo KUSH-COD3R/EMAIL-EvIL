@@ -36,20 +36,50 @@ One inbox. Multiple lanes. No clutter. Use the aliases in sign-ups and filtersâ€
 
 ## Run it
 
-Run directly with Python 3.10 or later:
+EMAIL-EvIL requires Python 3.10 or later. You can run it from a checkout without installing it, or install the command locally.
+
+### Run from the repository
+
+From the repository root, pass the email address to the script:
 
 ```bash
 python3 EMAIL-EvIL.py "alex@example.com"
 ```
 
-Or install the command locally:
+To enter the address interactively instead, leave it off the command:
+
+```bash
+python3 EMAIL-EvIL.py
+```
+
+When prompted, type your email address and press Enter. To see the available options and examples at any time, run:
+
+```bash
+python3 EMAIL-EvIL.py --help
+```
+
+### Install the command locally
+
+From the repository root, install the package for your current Python environment:
 
 ```bash
 python3 -m pip install .
+```
+
+Then use `email-evil` from your terminal:
+
+```bash
 email-evil "alex@example.com"
 ```
 
-Omit the email argument to be prompted for it. Get the full option list with `email-evil --help`.
+You can also omit the address to be prompted, or view the command's help:
+
+```bash
+email-evil
+email-evil --help
+```
+
+The command uses the default labels unless you choose a preset or provide custom labels. See [Customize labels](#customize-labels) for examples, and [Choose an output format](#choose-an-output-format) for text, terminal, JSON, CSV, and file output options.
 
 ## Customize labels
 
