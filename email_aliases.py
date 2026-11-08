@@ -17,6 +17,13 @@ PRESET_LABELS = {
     "minimal": ["shopping", "travel", "banking"],
     "personal": ["work", "family", "shopping", "travel"],
 }
+TERMINAL_BANNER = (
+    "      .--------------------------------------.\n"
+    "     /   EMAIL-EvIL | Inbox alias generator   \\\n"
+    "    |   .----.       One inbox, many lanes    |\n"
+    "    |  / .--. \\      Keep your inbox tidy     |\n"
+    "     \\ '----'________________________________/\n"
+)
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -68,10 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     label_options.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a built-in label set.")
     parser.add_argument(
-        "-f", "--format", choices=("text", "json", "csv"), default="text", help="Output format (default: text)."
+        "-f", "--format", choices=("text", "terminal", "json", "csv"), default="text",
+        help="Output format: plain text, ASCII terminal view, JSON, or CSV (default: text).",
     )
     parser.add_argument("-o", "--output", help="Write output to a file instead of the terminal.")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Omit the heading in text output.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Omit headings and artwork from output.")
     return parser
 
 
@@ -85,7 +93,7 @@ def resolve_labels(args: argparse.Namespace) -> list[str]:
 
 
 def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: bool = False) -> str:
-    """Format aliases as readable text, JSON, or a one-column CSV."""
+    """Format aliases as readable text, an ASCII terminal view, JSON, or CSV."""
     if output_format == "json":
         return json.dumps(list(aliases), indent=2) + "\n"
     if output_format == "csv":
@@ -94,6 +102,16 @@ def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: b
         writer.writerow(["alias"])
         writer.writerows((alias,) for alias in aliases)
         return buffer.getvalue()
+    if output_format == "terminal":
+        if quiet:
+            return "\n".join(aliases) + "\n"
+        heading = f"  YOUR ALIASES ({len(aliases)})"
+        width = max([len(heading), *(len(alias) + 4 for alias in aliases)], default=len(heading))
+        border = "+" + "-" * width + "+"
+        rows = [border, "|" + heading.ljust(width) + "|", border]
+        rows.extend("|  " + alias.ljust(width - 4) + "  |" for alias in aliases)
+        rows.append(border)
+        return TERMINAL_BANNER + "\n".join(rows) + "\n"
 
     lines = list(aliases)
     if not quiet:

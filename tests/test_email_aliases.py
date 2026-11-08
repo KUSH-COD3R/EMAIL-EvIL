@@ -82,6 +82,16 @@ class OutputFormatTests(unittest.TestCase):
     def test_quiet_text_omits_heading(self):
         self.assertEqual(render_aliases(self.aliases, quiet=True), "\n".join(self.aliases) + "\n")
 
+    def test_terminal_output_has_ascii_banner_and_boxed_aliases(self):
+        rendered = render_aliases(self.aliases, "terminal")
+        self.assertIn("EMAIL-EvIL | Inbox alias generator", rendered)
+        self.assertIn("YOUR ALIASES (2)", rendered)
+        self.assertIn("|  alex+receipts@example.com  |", rendered)
+        self.assertIn("|  alex+travel@example.com   |", rendered)
+
+    def test_quiet_terminal_output_omits_art_and_box(self):
+        self.assertEqual(render_aliases(self.aliases, "terminal", quiet=True), "\n".join(self.aliases) + "\n")
+
 
 class CliTests(unittest.TestCase):
     def test_custom_labels_and_json_output(self):
@@ -98,6 +108,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertNotIn("Generated aliases:", output.getvalue())
         self.assertEqual(len(output.getvalue().splitlines()), 3)
+
+    def test_terminal_format_option(self):
+        output = io.StringIO()
+        status = main(["alex@example.com", "--labels", "receipts", "--format", "terminal"], stdout=output)
+        self.assertEqual(status, 0)
+        self.assertIn("EMAIL-EvIL", output.getvalue())
+        self.assertIn("alex+receipts@example.com", output.getvalue())
 
     def test_writes_output_file(self):
         with tempfile.TemporaryDirectory() as directory:

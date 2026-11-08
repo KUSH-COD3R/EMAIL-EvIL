@@ -61,14 +61,17 @@ email-evil "alex@example.com" --preset personal
 
 ## Choose an output format
 
-Print JSON or CSV to the terminal:
+Use the ASCII terminal view for a more polished interactive display, or print machine-readable JSON and CSV:
 
 ```bash
+email-evil "alex@example.com" --format terminal
 email-evil "alex@example.com" --format json
 email-evil "alex@example.com" --format csv
 ```
 
-Write results to a file and omit the text heading when piping output:
+The terminal view includes a small ASCII banner and a boxed alias list. Use `--quiet` to suppress the artwork and box for clean output, or choose `--format text` for the plain-text view.
+
+Write results to a file:
 
 ```bash
 email-evil "alex@example.com" --format csv --output aliases.csv
