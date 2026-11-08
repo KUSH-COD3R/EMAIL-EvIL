@@ -20,11 +20,12 @@ PRESET_LABELS = {
     "personal": ["work", "family", "shopping", "travel"],
 }
 STARTUP_BANNER = (
-    "   .----.\n"
-    "  / .--. \\\n"
-    " | |  | |  EMAIL-EvIL\n"
-    "  \\ '--' /\n"
-    "   '----'\n"
+    "   .----.~~~~~~~~~~~~~~~~~~~~~~.\n"
+    "  / .--.  ╔══════════════════╗\n"
+    " | |  | |  ║  EMAIL-EvIL      ║\n"
+    "  \\ '--'  ║  by KUSH-COD3R  ║\n"
+    "   '----' ╚══════════════════╝\n"
+    "         // one inbox, many lanes\n"
 )
 
 
@@ -37,7 +38,7 @@ def _render_terminal_banner() -> str:
     """Render a compact banner that fits narrow Termux and mobile terminals."""
     width = min(52, _terminal_width())
     inside = width - 2
-    lines = ("EMAIL-EvIL | Inbox aliases", "One inbox, many lanes")
+    lines = ("EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
     body = ["|" + line[:inside].center(inside) + "|" for line in lines]
     return "\n".join((border, *body, border, ""))
@@ -118,7 +119,7 @@ def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> s
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate plus-address aliases to organize your inbox.",
-        epilog="Example: email-evil alex@example.com --labels receipts travel --format json",
+        epilog="Example: EMAIL-EvIL.py alex@example.com --labels receipts travel --format json",
     )
     parser.add_argument("email", nargs="?", help="Email address to create aliases for; prompts if omitted.")
     parser.add_argument(
