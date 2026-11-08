@@ -1,144 +1,203 @@
-# EMAIL-EvIL
+import csv
+import io
+import json
+import tempfile
+import unittest
+from pathlib import Path
 
-![EMAIL-EvIL banner](assets/email-evil-banner.svg)
+from email_aliases import (
+    DEFAULT_LABELS,
+    generate_aliases,
+    generate_batch_csv,
+    main,
+    render_aliases,
+    resolve_labels,
+    validate_email,
+)
 
-```text
-      .------------------------------------------------.
-      |  You've got mail... and it's a little evil!   |
-      '-------------------------.----------------------'
-                                \\
-          .-----.               \\
-         / .---. \\       .-----------------.
-        | | o o | |      /  EMAIL-EvIL!    \\
-        | |  ^  | |     |  Your inbox's     |
-         \\ '---' /      |  mischievous pal! |
-          '-----'        \\_________________/
-             \\                 ||
-              \\________________||____
-                               \\____/
-```
 
-A lightweight Python utility for generating plus-address aliases and putting one inbox under tighter control.
+class ValidateEmailTests(unittest.TestCase):
+    def test_strips_surrounding_whitespace(self):
+        self.assertEqual(validate_email("  alex@example.com  "), ("alex", "example.com"))
 
-## What it does
+    def test_rejects_missing_at_sign(self):
+        with self.assertRaisesRegex(ValueError, "containing '@'"):
+            validate_email("alex.example.com")
 
-Generate category-ready addresses from one email account:
+    def test_rejects_missing_local_part_or_domain(self):
+        for email in ("@example.com", "alex@", "alex@example"):
+            with self.subTest(email=email), self.assertRaises(ValueError):
+                validate_email(email)
 
-```text
-alex+shopping@example.com
-alex+newsletters@example.com
-alex+travel@example.com
-alex+projects@example.com
-alex+banking@example.com
-```
+    def test_rejects_internal_spaces(self):
+        with self.assertRaisesRegex(ValueError, "must not contain spaces"):
+            validate_email("alex smith@example.com")
 
-One inbox. Multiple lanes. No clutter. Use the aliases in sign-ups and filters—where your provider supports plus-addressing.
 
-## Run it
+class GenerateAliasesTests(unittest.TestCase):
+    def test_generates_default_aliases(self):
+        self.assertEqual(
+            generate_aliases("alex@example.com"),
+            [
+                "alex+shopping@example.com",
+                "alex+newsletters@example.com",
+                "alex+travel@example.com",
+                "alex+projects@example.com",
+                "alex+banking@example.com",
+            ],
+        )
 
-EMAIL-EvIL requires Python 3.10 or later. You can run it from a checkout without installing it, or install the command locally.
+    def test_normalizes_and_deduplicates_custom_labels(self):
+        self.assertEqual(
+            generate_aliases("alex@example.com", [" +Work ", "work", "TRAVEL"]),
+            ["alex+work@example.com", "alex+travel@example.com"],
+        )
 
-### Run from the repository
+    def test_empty_labels_fall_back_to_defaults(self):
+        self.assertEqual(generate_aliases("alex@example.com", ["", " "]), generate_aliases("alex@example.com"))
 
-From the repository root, pass the email address to the script:
+    def test_presets_are_copied(self):
+        args = type("Args", (), {"preset": "minimal", "labels": None})()
+        first = resolve_labels(args)
+        first.append("mutated")
+        self.assertEqual(resolve_labels(args), ["shopping", "travel", "banking"])
 
-```bash
-python3 EMAIL-EvIL.py "alex@example.com"
-```
+    def test_resolves_custom_and_default_labels(self):
+        self.assertEqual(resolve_labels(type("Args", (), {"preset": None, "labels": None})()), DEFAULT_LABELS)
+        self.assertEqual(
+            resolve_labels(type("Args", (), {"preset": None, "labels": ["Receipts"]})()),
+            ["receipts"],
+        )
 
-To enter the address interactively instead, leave it off the command:
 
-```bash
-python3 EMAIL-EvIL.py
-```
+class BatchCsvTests(unittest.TestCase):
+    def test_generates_rows_for_each_email_and_custom_labels(self):
+        source = io.StringIO("email,notes\nalex@example.com,work\nsam@example.net,personal\n")
+        rendered = generate_batch_csv(source, ["receipts", "travel"])
+        rows = list(csv.reader(io.StringIO(rendered)))
+        self.assertEqual(
+            rows,
+            [
+                ["email", "alias"],
+                ["alex@example.com", "alex+receipts@example.com"],
+                ["alex@example.com", "alex+travel@example.com"],
+                ["sam@example.net", "sam+receipts@example.net"],
+                ["sam@example.net", "sam+travel@example.net"],
+            ],
+        )
 
-When prompted, type your email address and press Enter. To see the available options and examples at any time, run:
+    def test_email_header_is_case_insensitive_and_blank_rows_are_skipped(self):
+        source = io.StringIO("Name, EMAIL \nAlex,alex@example.com\nSam,  \n")
+        rows = list(csv.reader(io.StringIO(generate_batch_csv(source, ["work"]))))
+        self.assertEqual(rows[1], ["alex@example.com", "alex+work@example.com"])
+        self.assertEqual(len(rows), 2)
 
-```bash
-python3 EMAIL-EvIL.py --help
-```
+    def test_requires_email_column(self):
+        with self.assertRaisesRegex(ValueError, "'email' column"):
+            generate_batch_csv(io.StringIO("address\nalex@example.com\n"))
 
-### Install the command locally
+    def test_invalid_email_reports_line_number_without_partial_output(self):
+        source = io.StringIO("email\nalex@example.com\nnot-an-email\n")
+        with self.assertRaisesRegex(ValueError, "CSV line 3"):
+            generate_batch_csv(source)
 
-From the repository root, install the package for your current Python environment:
 
-```bash
-python3 -m pip install .
-```
+class OutputFormatTests(unittest.TestCase):
+    aliases = ["alex+receipts@example.com", "alex+travel@example.com"]
 
-Then use `email-evil` from your terminal:
+    def test_json_output(self):
+        self.assertEqual(json.loads(render_aliases(self.aliases, "json")), self.aliases)
 
-```bash
-email-evil "alex@example.com"
-```
+    def test_csv_output_has_header(self):
+        rows = list(csv.reader(io.StringIO(render_aliases(self.aliases, "csv"))))
+        self.assertEqual(rows, [["alias"], *[[alias] for alias in self.aliases]])
 
-You can also omit the address to be prompted, or view the command's help:
+    def test_quiet_text_omits_heading(self):
+        self.assertEqual(render_aliases(self.aliases, quiet=True), "\n".join(self.aliases) + "\n")
 
-```bash
-email-evil
-email-evil --help
-```
+    def test_terminal_output_has_ascii_banner_and_boxed_aliases(self):
+        rendered = render_aliases(self.aliases, "terminal")
+        self.assertIn("EMAIL-EvIL | Inbox alias generator", rendered)
+        self.assertIn("YOUR ALIASES (2)", rendered)
+        self.assertIn("|  alex+receipts@example.com  |", rendered)
+        self.assertIn("|  alex+travel@example.com   |", rendered)
 
-The command uses the default labels unless you choose a preset or provide custom labels. See [Customize labels](#customize-labels) for examples, and [Choose an output format](#choose-an-output-format) for text, terminal, JSON, CSV, and file output options.
+    def test_quiet_terminal_output_omits_art_and_box(self):
+        self.assertEqual(render_aliases(self.aliases, "terminal", quiet=True), "\n".join(self.aliases) + "\n")
 
-## Customize labels
 
-```bash
-email-evil "alex@example.com" --labels shopping receipts travel
-email-evil "alex@example.com" --preset minimal
-email-evil "alex@example.com" --preset personal
-```
+class CliTests(unittest.TestCase):
+    def test_custom_labels_and_json_output(self):
+        output = io.StringIO()
+        status = main(["alex@example.com", "--labels", "receipts", "travel", "--format", "json"], stdout=output)
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(output.getvalue()), [
+            "alex+receipts@example.com", "alex+travel@example.com"
+        ])
 
-## Batch from a CSV
+    def test_preset_and_quiet_output(self):
+        output = io.StringIO()
+        status = main(["alex@example.com", "--preset", "minimal", "--quiet"], stdout=output)
+        self.assertEqual(status, 0)
+        self.assertNotIn("Generated aliases:", output.getvalue())
+        self.assertEqual(len(output.getvalue().splitlines()), 3)
 
-Create a CSV with an `email` column, then pass it to `--batch-csv`. The batch output is CSV with one row per generated alias, including the source email. Blank email rows are skipped; invalid addresses stop the batch with a line-numbered error.
+    def test_interactive_prompt_shows_banner(self):
+        output = io.StringIO()
+        stdin = io.StringIO("alex@example.com\n")
+        status = main([], stdin=stdin, stdout=output)
+        self.assertEqual(status, 0)
+        self.assertIn("EMAIL-EvIL", output.getvalue())
+        self.assertIn("Enter your email: ", output.getvalue())
 
-Input (`emails.csv`):
+    def test_quiet_interactive_prompt_hides_banner(self):
+        output = io.StringIO()
+        stdin = io.StringIO("alex@example.com\n")
+        status = main(["--quiet"], stdin=stdin, stdout=output)
+        self.assertEqual(status, 0)
+        self.assertNotIn("EMAIL-EvIL", output.getvalue())
+        self.assertIn("Enter your email: ", output.getvalue())
 
-```csv
-email
-alex@example.com
-sam@example.net
-```
+    def test_terminal_format_option(self):
+        output = io.StringIO()
+        status = main(["alex@example.com", "--labels", "receipts", "--format", "terminal"], stdout=output)
+        self.assertEqual(status, 0)
+        self.assertIn("EMAIL-EvIL", output.getvalue())
+        self.assertIn("alex+receipts@example.com", output.getvalue())
 
-Generate aliases and write the result to a file:
+    def test_writes_output_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "aliases.csv"
+            status = main(["alex@example.com", "--format", "csv", "--output", str(destination)])
+            self.assertEqual(status, 0)
+            self.assertEqual(list(csv.reader(destination.open(encoding="utf-8")))[0], ["alias"])
 
-```bash
-email-evil --batch-csv emails.csv --preset minimal --output aliases.csv
-```
+    def test_batch_csv_cli_writes_output_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "emails.csv"
+            destination = Path(directory) / "aliases.csv"
+            source.write_text("email\nalex@example.com\n", encoding="utf-8")
+            status = main(["--batch-csv", str(source), "--labels", "receipts", "--output", str(destination)])
+            self.assertEqual(status, 0)
+            self.assertEqual(
+                list(csv.reader(destination.open(encoding="utf-8"))),
+                [["email", "alias"], ["alex@example.com", "alex+receipts@example.com"]],
+            )
 
-The output has `email` and `alias` columns. Batch mode only formats alias addresses; it does not send email or contact providers.
+    def test_batch_csv_cli_rejects_positional_email(self):
+        output, errors = io.StringIO(), io.StringIO()
+        status = main(["alex@example.com", "--batch-csv", "emails.csv"], stdout=output, stderr=errors)
+        self.assertEqual(status, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("Do not provide an email argument", errors.getvalue())
 
-## Choose an output format
+    def test_invalid_email_returns_error_status(self):
+        output, errors = io.StringIO(), io.StringIO()
+        status = main(["not-an-email"], stdout=output, stderr=errors)
+        self.assertEqual(status, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("Error:", errors.getvalue())
 
-Use the ASCII terminal view for a more polished interactive display, or print machine-readable JSON and CSV:
 
-```bash
-email-evil "alex@example.com" --format terminal
-email-evil "alex@example.com" --format json
-email-evil "alex@example.com" --format csv
-```
-
-The terminal view includes a small ASCII banner and a boxed alias list. Use `--quiet` to suppress the artwork and box for clean output, or choose `--format text` for the plain-text view.
-
-Write results to a file:
-
-```bash
-email-evil "alex@example.com" --format csv --output aliases.csv
-email-evil "alex@example.com" --quiet
-```
-
-## Tests
-
-Run the standard-library test suite from the repository root:
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
-## Important notes
-
-- **Generation only:** EMAIL-EvIL formats alias addresses as text; it does not send email or sign you up for anything.
-- **No external services:** The program does not connect to email providers, APIs, or other network services.
-- **Provider support varies:** Plus-addressing is not supported by every provider, and alias handling may differ. Check your provider's documentation before relying on an alias.
-- **Use responsibly:** These aliases are intended for organizing your own inbox and filters, not for spam, unsolicited bulk messaging, or evading service rules.
+if __name__ == "__main__":
+    unittest.main()
