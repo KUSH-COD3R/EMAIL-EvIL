@@ -42,7 +42,7 @@ def _render_terminal_banner() -> str:
     inner = width - 2
     art = (
         "  .-''''-.  ",
-        " /  .--.  \",
+        " /  .--.  \\ ",
         "|  (o)(o)  |",
         "|   \\__/   |",
         " \\  ____  /",
@@ -55,8 +55,7 @@ def _render_terminal_banner() -> str:
     lines.append("|" + " " * inner + "|")
     lines.extend("|" + row[:inner].center(inner) + "|" for row in title)
     lines.append(border)
-    banner = "\n".join(lines) + "\n"
-    return _banner_color(banner, "1;31")
+    return _banner_color("\n".join(lines) + "\n", "1;31")
 
 
 def _render_startup_banner() -> str:
