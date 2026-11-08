@@ -32,6 +32,18 @@ BANNER = r"""
    |________| /
                  Python 3 inbox alias generator
 """
+RAINBOW = ("\033[91m", "\033[93m", "\033[92m", "\033[96m", "\033[94m", "\033[95m")
+RESET = "\033[0m"
+
+
+def colorize_banner(banner: str = BANNER, *, use_color: bool = True) -> str:
+    """Apply cycling ANSI rainbow colors, or return plain text when disabled."""
+    if not use_color:
+        return banner
+    colored_lines = []
+    for index, line in enumerate(banner.splitlines()):
+        colored_lines.append(f"{RAINBOW[index % len(RAINBOW)]}{line}{RESET}" if line else "")
+    return "\n".join(colored_lines)
 
 
 def normalize_labels(labels: Iterable[str] | None = None) -> list[str]:
@@ -108,6 +120,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-banner", action="store_true", help="Hide the startup banner in terminal output"
     )
+    parser.add_argument(
+        "--no-color", action="store_true", help="Disable ANSI rainbow colors in the banner"
+    )
     return parser
 
 
@@ -125,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(aliases, indent=2))
     else:
         if not args.no_banner:
-            print(BANNER)
+            print(colorize_banner(use_color=not args.no_color))
         print("Generated inbox aliases:\n")
         for alias in aliases:
             print(f"  + {alias}")
