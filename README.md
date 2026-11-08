@@ -87,6 +87,7 @@ This project is designed for harmless inbox management and is best used with pro
 - Clean, testable Python module structure
 - Built-in preset categories for common alias uses
 - Optional file output and structured JSON export
+- Extra validation and predictable alias generation
 
 ## Installation
 
