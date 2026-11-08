@@ -14,7 +14,7 @@ alex+projects@example.com
 alex+banking@example.com
 ```
 
-These aliases can be useful for filtering mail by category when your email provider supports plus-addressing.
+Give your inbox a little edge: spin one address into sleek, category-ready aliases—if your email provider supports plus-addressing.
 
 ## Usage
 
@@ -58,4 +58,4 @@ python3 -m unittest discover -s tests -v
 
 ## Notes
 
-This is a harmless inbox-management pattern and only works with providers that support plus-addressing.
+Plus-addressing support varies by email provider.
