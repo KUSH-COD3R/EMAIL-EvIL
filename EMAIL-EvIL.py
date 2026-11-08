@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Generate plus-address email aliases for organizing inboxes."""
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -35,26 +37,25 @@ def _color_enabled(stream: TextIO, requested: bool = True) -> bool:
 
 
 def _render_terminal_banner(color: bool = True) -> str:
-    """Render a compact, sharply defined dragon banner for Termux terminals."""
+    """Render a compact, numeric/symbol dragon banner for Termux terminals."""
     use_color = color and _color_enabled(sys.stdout)
     width = min(42, max(24, _terminal_width()))
     inside = width - 2
     dragon = (
-        "           /\\             /\\",
-        "      ____/  \\___________/  \\____",
-        "     /  _   /  /^^^^^\\  \\   _  \",
-        "    /__/ \\_/  (  o o  )  \\_/ \\__\\",
-        "             \\   ^   /",
-        "              \\_____ /",
-        "          ____/| |\\____",
-        "         /____/   \\____\\",
+        "      7  7  7",
+        "    /\\  0 0  /\\",
+        "   /  \\_^^_//  \",
+        "   (  /|  |\\  )",
+        "    \\_ /  \\ _/",
+        "      /_^^_\\",
+        "       /  \\",
     )
     title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
     lines = [_paint(border, "1;31", enabled=use_color)]
     for index, row in enumerate(dragon):
-        eye_color = "1;33" if index == 3 else "31"
-        lines.append("|" + _paint(row.center(inside), eye_color, enabled=use_color) + "|")
+        color_code = "1;33" if index in (0, 1) else "31"
+        lines.append("|" + _paint(row.center(inside), color_code, enabled=use_color) + "|")
     lines.append("|" + " " * inside + "|")
     for index, label in enumerate(title):
         color_code = "1;31" if index < 2 else "1;33"
