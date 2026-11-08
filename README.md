@@ -39,7 +39,7 @@ One inbox. Multiple lanes. No clutter. Use the aliases in sign-ups and filtersâ€
 Run directly with Python 3.10 or later:
 
 ```bash
-python3 email_aliases.py "alex@example.com"
+python3 EMAIL-EvIL.py "alex@example.com"
 ```
 
 Or install the command locally:
