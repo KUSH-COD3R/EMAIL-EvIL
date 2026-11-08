@@ -44,3 +44,14 @@ def test_cli_preset_output(monkeypatch, capsys):
         "alex+family@example.com",
         "alex+finance@example.com",
     ]
+
+
+def test_show_preset_output(capsys):
+    from email_aliases import main as alias_main
+
+    rc = alias_main(["--show-preset"])
+    output = capsys.readouterr().out
+    assert rc == 0
+    assert "Available presets:" in output
+    assert "personal" in output
+    assert "marketing" in output

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .aliases import generate_aliases
+from .colors import colorize, Colors
 from .presets import PRESETS
 
 
@@ -23,6 +24,7 @@ def _parse_labels(raw_labels: list[str] | None, comma_labels: str | None) -> lis
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate plus-address email aliases for inbox organization.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("email", nargs="?", help="Base email address used to generate aliases.")
     parser.add_argument(
@@ -50,9 +52,20 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         help="Optional output file path to write the aliases to.",
     )
+    parser.add_argument(
+        "--show-preset",
+        action="store_true",
+        help="Display the available preset groups and exit.",
+    )
     args = parser.parse_args(argv)
 
-    email_value = args.email or input("Enter your email: ").strip()
+    if args.show_preset:
+        print(colorize("Available presets:", Colors.BOLD + Colors.CYAN))
+        for name, labels in PRESETS.items():
+            print(f"  {name}: {', '.join(labels)}")
+        return 0
+
+    email_value = args.email or input(colorize("Enter your email: ", Colors.YELLOW)).strip()
     labels = _parse_labels(args.label, args.labels)
     if args.preset:
         labels = PRESETS[args.preset] + labels
@@ -60,18 +73,20 @@ def main(argv: list[str] | None = None) -> int:
     try:
         aliases = generate_aliases(email_value, labels)
     except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print(colorize(f"Error: {exc}", Colors.RED), file=sys.stderr)
         return 2
 
     if args.format == "json":
         rendered = json.dumps(aliases, indent=2)
     else:
-        rendered = "Generated aliases:\n" + "\n".join(aliases)
+        rendered = colorize("Generated aliases:\n", Colors.BOLD + Colors.CYAN) + "\n".join(
+            colorize(alias, Colors.GREEN) for alias in aliases
+        )
 
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(rendered + "\n", encoding="utf-8")
+        output_path.write_text(rendered.replace("\033[0m", "") + "\n", encoding="utf-8")
 
     print(rendered)
     return 0
