@@ -48,6 +48,14 @@ python3 email_aliases.py "alex@example.com" --preset minimal
 python3 email_aliases.py "alex@example.com" --preset personal
 ```
 
+## Tests
+
+Run the built-in `unittest` suite from the repository root:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 ## Notes
 
 This is a harmless inbox-management pattern and only works with providers that support plus-addressing.
