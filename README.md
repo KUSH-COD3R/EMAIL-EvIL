@@ -83,6 +83,9 @@ Run the standard-library test suite from the repository root:
 python3 -m unittest discover -s tests -v
 ```
 
-## Notes
+## Important notes
 
-EMAIL-EvIL only generates text; it does not send email or contact any service. Plus-addressing support varies by provider.
+- **Generation only:** EMAIL-EvIL formats alias addresses as text; it does not send email or sign you up for anything.
+- **No external services:** The program does not connect to email providers, APIs, or other network services.
+- **Provider support varies:** Plus-addressing is not supported by every provider, and alias handling may differ. Check your provider's documentation before relying on an alias.
+- **Use responsibly:** These aliases are intended for organizing your own inbox and filters, not for spam, unsolicited bulk messaging, or evading service rules.
