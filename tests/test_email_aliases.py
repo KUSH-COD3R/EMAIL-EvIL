@@ -23,6 +23,10 @@ class ValidateEmailTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "containing '@'"):
             validate_email("alex.example.com")
 
+    def test_rejects_empty_email(self):
+        with self.assertRaisesRegex(ValueError, "Please provide an email address"):
+            validate_email("")
+
     def test_rejects_missing_local_part_or_domain(self):
         for email in ("@example.com", "alex@", "alex@example"):
             with self.subTest(email=email), self.assertRaises(ValueError):
@@ -31,6 +35,10 @@ class ValidateEmailTests(unittest.TestCase):
     def test_rejects_internal_spaces(self):
         with self.assertRaisesRegex(ValueError, "must not contain spaces"):
             validate_email("alex smith@example.com")
+
+    def test_rejects_dots_at_edges(self):
+        with self.assertRaisesRegex(ValueError, "cannot start or end with a period"):
+            validate_email(".alex@example.com")
 
 
 class GenerateAliasesTests(unittest.TestCase):
@@ -98,9 +106,10 @@ class CliTests(unittest.TestCase):
         output = io.StringIO()
         status = main(["alex@example.com", "--labels", "receipts", "travel", "--format", "json"], stdout=output)
         self.assertEqual(status, 0)
-        self.assertEqual(json.loads(output.getvalue()), [
-            "alex+receipts@example.com", "alex+travel@example.com"
-        ])
+        self.assertEqual(
+            json.loads(output.getvalue()),
+            ["alex+receipts@example.com", "alex+travel@example.com"],
+        )
 
     def test_preset_and_quiet_output(self):
         output = io.StringIO()
@@ -129,6 +138,12 @@ class CliTests(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertEqual(output.getvalue(), "")
         self.assertIn("Error:", errors.getvalue())
+
+    def test_reads_email_from_stdin_when_argument_missing(self):
+        output = io.StringIO()
+        status = main([], stdout=output, stdin=io.StringIO("demo@example.com\n"))
+        self.assertEqual(status, 0)
+        self.assertIn("demo+shopping@example.com", output.getvalue())
 
 
 if __name__ == "__main__":
