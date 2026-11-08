@@ -4,6 +4,7 @@
 import argparse
 import csv
 import json
+import os
 import shutil
 import sys
 import textwrap
@@ -24,24 +25,36 @@ def _terminal_width() -> int:
     return max(20, shutil.get_terminal_size((80, 24)).columns)
 
 
-def _render_terminal_banner() -> str:
-    """Plain ASCII art, with no trailing backslashes or terminal color codes."""
+def _paint(text: str, code: str, *, enabled: bool) -> str:
+    """Apply ANSI color only when enabled."""
+    return f"\033[{code}m{text}\033[0m" if enabled else text
+
+
+def _render_terminal_banner(color: bool = True) -> str:
+    """A compact, evil-themed banner that fits Termux and narrow terminals."""
+    use_color = color and sys.stdout.isatty() and "NO_COLOR" not in os.environ
     width = min(42, _terminal_width())
     inside = width - 2
-    lines = (
-        "  ^     ^ ",
-        " ( o   o )",
-        "  |  ^  |  EMAIL-EvIL",
-        "  |  v  |  by KUSH-COD3R",
-        "   one inbox, many lanes",
+    art = (
+        "    .--------.",
+        "   /  .--.    \\",
+        "  |  (o)(o)   |",
+        "  |    /\\    |",
+        "  |   \\__/   |",
+        "   \\        /",
+        "    '------'",
     )
+    title = ("EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
-    body = ["|" + line[:inside].center(inside) + "|" for line in lines]
-    return "\n".join((border, *body, border, ""))
-
-
-def _render_startup_banner() -> str:
-    return _render_terminal_banner()
+    lines = [_paint(border, "1;31", enabled=use_color)]
+    for row in art:
+        lines.append("|" + _paint(row[:inside].center(inside), "31", enabled=use_color) + "|")
+    lines.append("|" + " " * inside + "|")
+    for index, row in enumerate(title):
+        color_code = "1;31" if index == 0 else "33"
+        lines.append("|" + _paint(row[:inside].center(inside), color_code, enabled=use_color) + "|")
+    lines.append(_paint(border, "1;31", enabled=use_color))
+    return "\n".join(lines) + "\n"
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -106,6 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-f", "--format", choices=("terminal", "text", "json", "csv"), default="terminal")
     parser.add_argument("-o", "--output", help="Write output to a file.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Hide banner and headings.")
+    parser.add_argument("--no-color", action="store_true", help="Disable ANSI banner colors.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -116,7 +130,8 @@ def resolve_labels(args: argparse.Namespace) -> list[str]:
     return _normalize_labels(args.labels)
 
 
-def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: bool = False) -> str:
+def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: bool = False,
+                   *, color: bool = True) -> str:
     if output_format == "json":
         return json.dumps(list(aliases), indent=2) + "\n"
     if output_format == "csv":
@@ -128,16 +143,16 @@ def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: b
     if output_format == "terminal":
         if quiet:
             return "\n".join(aliases) + "\n"
-        heading = f"YOUR ALIASES ({len(aliases)})"
         width = max(20, min(_terminal_width() - 2, 60))
         inside = width - 2
+        heading = f"YOUR ALIASES ({len(aliases)})"
         border = "+" + "-" * inside + "+"
         rows = [border, "|" + heading[:inside].center(inside) + "|", border]
         for alias in aliases:
             parts = textwrap.wrap(alias, width=max(1, inside - 4), break_long_words=True)
             rows.extend("|  " + part.ljust(inside - 4) + "  |" for part in parts)
         rows.append(border)
-        return _render_terminal_banner() + "\n".join(rows) + "\n"
+        return _render_terminal_banner(color) + "\n".join(rows) + "\n"
     text = list(aliases)
     if not quiet:
         text.insert(0, "Generated aliases:")
@@ -160,12 +175,13 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None,
         else:
             if args.email is None:
                 if not args.quiet:
-                    stdout.write(_render_startup_banner())
+                    stdout.write(_render_terminal_banner(color=not args.no_color))
                 stdout.write("Enter your email: ")
                 email = stdin.readline().strip()
             else:
                 email = args.email
-            rendered = render_aliases(generate_aliases(email, labels), args.format, args.quiet)
+            rendered = render_aliases(generate_aliases(email, labels), args.format, args.quiet,
+                                      color=not args.no_color)
         if args.output:
             Path(args.output).write_text(rendered, encoding="utf-8", newline="")
         else:
