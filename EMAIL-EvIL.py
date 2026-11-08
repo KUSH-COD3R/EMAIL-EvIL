@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import shutil
 import sys
+import textwrap
 from io import StringIO
 from pathlib import Path
 from typing import Sequence, TextIO
@@ -17,13 +19,6 @@ PRESET_LABELS = {
     "minimal": ["shopping", "travel", "banking"],
     "personal": ["work", "family", "shopping", "travel"],
 }
-TERMINAL_BANNER = (
-    "      .--------------------------------------.\n"
-    "     /   EMAIL-EvIL | Inbox alias generator   \\\n"
-    "    |   .----.       One inbox, many lanes    |\n"
-    "    |  / .--. \\      Keep your inbox tidy     |\n"
-    "     \\ '----'________________________________/\n"
-)
 STARTUP_BANNER = (
     "   .----.\n"
     "  / .--. \\\n"
@@ -31,6 +26,21 @@ STARTUP_BANNER = (
     "  \\ '--' /\n"
     "   '----'\n"
 )
+
+
+def _terminal_width() -> int:
+    """Return a safe terminal width, including when output is redirected."""
+    return max(10, shutil.get_terminal_size((80, 24)).columns)
+
+
+def _render_terminal_banner() -> str:
+    """Render a compact banner that fits narrow Termux and mobile terminals."""
+    width = min(52, _terminal_width())
+    inside = width - 2
+    lines = ("EMAIL-EvIL | Inbox aliases", "One inbox, many lanes")
+    border = "+" + "-" * inside + "+"
+    body = ["|" + line[:inside].center(inside) + "|" for line in lines]
+    return "\n".join((border, *body, border, ""))
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -122,8 +132,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     label_options.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a built-in label set.")
     parser.add_argument(
-        "-f", "--format", choices=("text", "terminal", "json", "csv"), default="text",
-        help="Output format: plain text, ASCII terminal view, JSON, or CSV (default: text).",
+        "-f", "--format", choices=("text", "terminal", "json", "csv"), default="terminal",
+        help="Output format: terminal view, plain text, JSON, or CSV (default: terminal).",
     )
     parser.add_argument("-o", "--output", help="Write output to a file instead of the terminal.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Omit headings and artwork from output.")
@@ -140,7 +150,7 @@ def resolve_labels(args: argparse.Namespace) -> list[str]:
 
 
 def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: bool = False) -> str:
-    """Format aliases as readable text, an ASCII terminal view, JSON, or CSV."""
+    """Format aliases as readable text, a responsive terminal view, JSON, or CSV."""
     if output_format == "json":
         return json.dumps(list(aliases), indent=2) + "\n"
     if output_format == "csv":
@@ -152,13 +162,17 @@ def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: b
     if output_format == "terminal":
         if quiet:
             return "\n".join(aliases) + "\n"
-        heading = f"  YOUR ALIASES ({len(aliases)})"
-        width = max([len(heading), *(len(alias) + 4 for alias in aliases)], default=len(heading))
-        border = "+" + "-" * width + "+"
-        rows = [border, "|" + heading.ljust(width) + "|", border]
-        rows.extend("|  " + alias.ljust(width - 4) + "  |" for alias in aliases)
+        heading = f"YOUR ALIASES ({len(aliases)})"
+        terminal_width = _terminal_width()
+        box_width = max(8, min(terminal_width - 2, max(len(heading), 20)))
+        content_width = max(1, box_width - 4)
+        border = "+" + "-" * box_width + "+"
+        rows = [border, "|" + heading[:box_width].center(box_width) + "|", border]
+        for alias in aliases:
+            wrapped = textwrap.wrap(alias, width=content_width, break_long_words=True, break_on_hyphens=False)
+            rows.extend("|  " + part.ljust(content_width) + "  |" for part in wrapped or [""])
         rows.append(border)
-        return TERMINAL_BANNER + "\n".join(rows) + "\n"
+        return _render_terminal_banner() + "\n".join(rows) + "\n"
 
     lines = list(aliases)
     if not quiet:
