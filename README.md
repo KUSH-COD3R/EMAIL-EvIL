@@ -2,6 +2,22 @@
 
 ![EMAIL-EvIL banner](assets/email-evil-banner.svg)
 
+```text
+      .------------------------------------------------.
+      |  You've got mail... and it's a little evil!   |
+      '-------------------------.----------------------'
+                                \\
+          .-----.               \\
+         / .---. \\       .-----------------.
+        | | o o | |      /  EMAIL-EvIL!    \\
+        | |  ^  | |     |  Your inbox's     |
+         \\ '---' /      |  mischievous pal! |
+          '-----'        \\_________________/
+             \\                 ||
+              \\________________||____
+                               \\____/
+```
+
 A lightweight Python utility for generating plus-address aliases and putting one inbox under tighter control.
 
 ## What it does
