@@ -1,33 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500" role="img" aria-labelledby="title desc">
-  <title id="title">EMAIL-EvIL — one inbox, many aliases</title>
-  <desc id="desc">A neon email banner with an envelope and colorful randomized plus-address aliases.</desc>
+  <title id="title">EMAIL-EvIL — the mischievous mailbox</title>
+  <desc id="desc">A playful, spooky email banner with a grinning mailbox, mischievous envelope, and plus-address examples.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10152d"/><stop offset="1" stop-color="#251449"/></linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#c4b5fd" opacity=".18"/></pattern>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#171014"/><stop offset="1" stop-color="#351619"/></linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff623d"/><stop offset="1" stop-color="#c51f3a"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff9e38"/><stop offset="1" stop-color="#ffd166"/></linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#ffb36b" opacity=".15"/></pattern>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
-  <rect width="1500" height="500" rx="28" fill="url(#bg)"/><rect width="1500" height="500" rx="28" fill="url(#dots)"/>
-  <circle cx="1240" cy="150" r="190" fill="#7c3aed" opacity=".12"/><circle cx="1040" cy="430" r="160" fill="#06b6d4" opacity=".1"/>
-  <path d="M0 410 C260 330 380 520 670 420 S1120 330 1500 430" fill="none" stroke="#a78bfa" stroke-width="2" opacity=".2"/>
+  <rect width="1500" height="500" rx="28" fill="url(#bg)"/>
+  <rect width="1500" height="500" rx="28" fill="url(#dots)"/>
+  <path d="M0 390 C250 310 420 480 700 390 S1170 330 1500 410" fill="none" stroke="#ff623d" stroke-width="2" opacity=".24"/>
   <g font-family="Inter,Segoe UI,Arial,sans-serif">
-    <rect x="94" y="82" width="178" height="34" rx="17" fill="#312e81" stroke="#818cf8" stroke-opacity=".6"/>
-    <text x="183" y="105" fill="#c4b5fd" font-size="15" font-weight="700" letter-spacing="2" text-anchor="middle">PYTHON • EMAIL TOOL</text>
-    <text x="90" y="220" fill="#fff" font-size="72" font-weight="800" letter-spacing="-2">EMAIL-EvIL</text>
-    <text x="94" y="276" fill="#cbd5e1" font-size="27" font-weight="500">One inbox. Many aliases. More control.</text>
-    <text x="96" y="334" fill="#94a3b8" font-size="19">Generate plus-addresses for every lane of life.</text>
-    <g transform="translate(96 380)"><rect width="192" height="42" rx="21" fill="#0e7490" opacity=".9"/><text x="96" y="27" fill="#ecfeff" font-size="16" font-weight="700" text-anchor="middle">alex+anything@…</text></g>
+    <rect x="90" y="78" width="190" height="36" rx="18" fill="#4b1720" stroke="#ff7952" stroke-opacity=".8"/>
+    <text x="185" y="102" fill="#ffd166" font-size="15" font-weight="700" letter-spacing="2" text-anchor="middle">THE MISCHIEF MAILBOX</text>
+    <text x="86" y="216" fill="#fff4e8" font-size="74" font-weight="900" letter-spacing="-3">EMAIL-EvIL</text>
+    <text x="92" y="270" fill="#ffb36b" font-size="27" font-weight="600">You've got mail... and it's a little evil!</text>
+    <text x="94" y="322" fill="#e8c9b9" font-size="19">One inbox. Clever aliases. No actual mail-sending tricks.</text>
+    <g transform="translate(94 366)">
+      <rect width="235" height="44" rx="22" fill="#5b1d22" stroke="#ff8053"/>
+      <text x="117" y="28" fill="#fff0dd" font-size="16" font-weight="700" text-anchor="middle">PLUS-ADDRESS ALIASES</text>
+    </g>
   </g>
-  <g transform="translate(850 94) rotate(-8 260 150)" filter="url(#glow)" opacity=".85">
-    <rect x="0" y="0" width="390" height="258" rx="24" fill="#172554" stroke="#67e8f9" stroke-opacity=".45" stroke-width="2"/>
-    <path d="M5 22 Q5 5 24 5 H366 Q385 5 385 24 V73 L195 204 5 73Z" fill="#1e3a8a" opacity=".75"/>
-    <path d="M6 69 195 203 384 69" fill="none" stroke="url(#accent)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M6 235 135 126 M384 235 255 126" fill="none" stroke="#67e8f9" stroke-width="8" stroke-linecap="round" opacity=".9"/>
+  <!-- Cartoon mailbox -->
+  <g transform="translate(930 112)" filter="url(#glow)">
+    <path d="M52 93a108 108 0 0 1 216 0v144H52Z" fill="url(#red)" stroke="#ffad66" stroke-width="5"/>
+    <rect x="38" y="220" width="244" height="34" rx="10" fill="#84232b" stroke="#ffad66" stroke-width="4"/>
+    <path d="M126 254h68l25 135h-32l-27-105-27 105h-32z" fill="#8c5a3b" stroke="#d99a62" stroke-width="4"/>
+    <rect x="95" y="136" width="130" height="74" rx="12" fill="#28151a" stroke="#ffbd77" stroke-width="4"/>
+    <path d="M106 149l54 40 54-40" fill="none" stroke="#ffb75a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="129" cy="105" r="8" fill="#fff2bd"/><circle cx="194" cy="105" r="8" fill="#fff2bd"/>
+    <path d="M128 119q33 28 67 0" fill="none" stroke="#351014" stroke-width="8" stroke-linecap="round"/>
+    <path d="M266 105v-76h18v76" fill="none" stroke="#ffd166" stroke-width="9" stroke-linecap="round"/>
+    <path d="M284 31h58v40h-58" fill="#ff7b45" stroke="#ffd166" stroke-width="4"/>
+    <text x="313" y="57" fill="#fff5e8" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">MAIL!</text>
   </g>
-  <g font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="17" font-weight="600">
-    <g transform="translate(1070 52) rotate(7)"><rect width="285" height="56" rx="14" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5"/><circle cx="24" cy="28" r="7" fill="#c084fc"/><text x="44" y="34" fill="#f5f3ff">alex+travel@…</text></g>
-    <g transform="translate(1135 320) rotate(-5)"><rect width="300" height="56" rx="14" fill="#1e293b" stroke="#34d399" stroke-width="1.5"/><circle cx="24" cy="28" r="7" fill="#34d399"/><text x="44" y="34" fill="#ecfdf5">alex+receipts@…</text></g>
-    <g transform="translate(770 370) rotate(4)"><rect width="315" height="56" rx="14" fill="#1e293b" stroke="#fbbf24" stroke-width="1.5"/><circle cx="24" cy="28" r="7" fill="#fbbf24"/><text x="44" y="34" fill="#fffbeb">alex+newsletters@…</text></g>
+  <!-- Playful alias slips -->
+  <g font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16" font-weight="700">
+    <g transform="translate(780 68) rotate(-7)"><rect width="250" height="48" rx="12" fill="#26171b" stroke="#ff9e38" stroke-width="2"/><text x="18" y="30" fill="#ffd166">you+snacks@example.com</text></g>
+    <g transform="translate(1150 355) rotate(5)"><rect width="285" height="48" rx="12" fill="#26171b" stroke="#ff623d" stroke-width="2"/><text x="16" y="30" fill="#ffb3a0">you+news@example.com</text></g>
   </g>
-  <circle cx="1390" cy="150" r="4" fill="#67e8f9"/><circle cx="800" cy="112" r="5" fill="#c084fc"/><circle cx="1010" cy="60" r="3" fill="#fbbf24"/>
+  <g fill="#ffbd77"><circle cx="690" cy="112" r="4"/><circle cx="1404" cy="154" r="5"/><circle cx="753" cy="348" r="3"/><path d="M1375 95l5 12 12 5-12 5-5 12-5-12-12-5 12-5z"/></g>
 </svg>
