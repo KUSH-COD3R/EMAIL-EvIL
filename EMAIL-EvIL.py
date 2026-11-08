@@ -29,7 +29,6 @@ def _terminal_width() -> int:
 
 
 def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None) -> str:
-    """Apply ANSI color only when supported by the terminal."""
     if not enabled:
         return text
     target = stream or sys.stdout
@@ -38,10 +37,35 @@ def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None)
     return text
 
 
+def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
+    """Safe terminal banner with a dragon silhouette and warm red/gold colors."""
+    width = min(42, max(24, _terminal_width()))
+    dragon = [
+        "       __/\\__        ",
+        "     _/  0 0 \\_      ",
+        "    /  ( ^ ^)  \\     ",
+        "   /____/ \\____\\     ",
+        "       /_/  \\_\\     ",
+        "       /_/\\_\\       ",
+        "      __/  \\__      ",
+    ]
+    title = ["INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes"]
+    lines: list[str] = []
+    border = "+" + "-" * (width - 2) + "+"
+    lines.append(_paint(border, "1;31", enabled=color, stream=stream))
+    for row in dragon:
+        lines.append("|" + _paint(row[: width - 2].center(width - 2), "31", enabled=color, stream=stream) + "|")
+    lines.append("|" + " " * (width - 2) + "|")
+    for i, label in enumerate(title):
+        code = "1;31" if i < 2 else "1;33"
+        lines.append("|" + _paint(label[: width - 2].center(width - 2), code, enabled=color, stream=stream) + "|")
+    lines.append(_paint(border, "1;31", enabled=color, stream=stream))
+    return "\n".join(lines) + "\n"
+
+
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
     if labels is None:
         return DEFAULT_LABELS.copy()
-
     result: list[str] = []
     seen: set[str] = set()
     for label in labels:
@@ -56,25 +80,23 @@ def validate_email(email: str) -> tuple[str, str]:
     address = email.strip()
     if not address or "@" not in address:
         raise ValueError("Please provide an email address containing '@'.")
-
-    local_part, domain = address.rsplit("@", 1)
-    if not local_part or not domain or "." not in domain:
+    local, domain = address.rsplit("@", 1)
+    if not local or "." not in domain:
         raise ValueError("Please provide an email address with a valid-looking domain.")
     if any(char.isspace() for char in address):
         raise ValueError("Email addresses must not contain spaces.")
-    return local_part, domain
+    return local, domain
 
 
 def generate_aliases(email: str, labels: Sequence[str] | None = None) -> list[str]:
-    local_part, domain = validate_email(email)
-    return [f"{local_part}+{label}@{domain}" for label in _normalize_labels(labels)]
+    local, domain = validate_email(email)
+    return [f"{local}+{label}@{domain}" for label in _normalize_labels(labels)]
 
 
 def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> str:
     reader = csv.DictReader(source)
     if reader.fieldnames is None:
         raise ValueError("Batch CSV must include an 'email' header.")
-
     email_field = next(
         (field for field in reader.fieldnames if field and field.strip().lower() == "email"),
         None,
@@ -101,22 +123,18 @@ def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> s
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate plus-address aliases for your inbox.",
-        epilog="Example: EMAIL-EvIL.py alex@example.com --labels receipts travel --format json",
+        epilog="Example: EMAIL-EvIL.py alex@example.com --labels shopping travel --format json",
     )
     parser.add_argument("email", nargs="?", help="Email address to generate aliases for; prompts if omitted.")
-    parser.add_argument(
-        "--batch-csv",
-        metavar="PATH",
-        help="Read a CSV containing an 'email' column and generate aliases for each row.",
-    )
+    parser.add_argument("--batch-csv", metavar="PATH", help="Read a CSV with an 'email' column.")
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-l", "--labels", nargs="+", help="Custom alias labels.")
-    group.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a built-in preset.")
+    group.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a preset label pack.")
 
-    parser.add_argument("-f", "--format", choices=("text", "terminal", "json", "csv"), default="terminal")
+    parser.add_argument("-f", "--format", choices=("terminal", "text", "json", "csv"), default="terminal")
     parser.add_argument("-o", "--output", help="Write the output to a file.")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Hide banner and headings.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Hide the banner and headings.")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
@@ -125,9 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
 def resolve_labels(args: argparse.Namespace) -> list[str]:
     if args.preset:
         return PRESET_LABELS[args.preset].copy()
-    if args.labels is not None:
-        return _normalize_labels(args.labels)
-    return DEFAULT_LABELS.copy()
+    return _normalize_labels(args.labels)
 
 
 def render_aliases(
@@ -151,28 +167,21 @@ def render_aliases(
     if output_format == "terminal":
         if quiet:
             return "\n".join(aliases) + "\n"
-
+        banner = _render_banner(color=color, stream=stream)
         width = max(20, min(_terminal_width() - 2, 60))
         border = "+" + "-" * width + "+"
-        banner = _paint("EMAIL-EvIL", "1;31", enabled=color, stream=stream)
-        subhead = _paint("one inbox, many lanes", "1;33", enabled=color, stream=stream)
-        title = _paint(f"YOUR ALIASES ({len(aliases)})", "1;31", enabled=color, stream=stream)
-
+        title = _paint(f"YOUR ALIASES ({len(aliases)})", "1;33", enabled=color, stream=stream)
         rows = [
-            border,
-            f"|{banner.center(width - 2)}|",
-            f"|{subhead.center(width - 2)}|",
-            border,
-            f"|{title.center(width - 2)}|",
-            border,
+            _paint(border, "1;31", enabled=color, stream=stream),
+            "|" + title.center(width - 2) + "|",
+            _paint(border, "1;31", enabled=color, stream=stream),
         ]
-
         for alias in aliases:
             chunks = textwrap.wrap(alias, width=max(1, width - 6), break_long_words=True, break_on_hyphens=False)
             for chunk in chunks:
-                rows.append(f"|  {_paint(chunk.ljust(width - 6), '33', enabled=color, stream=stream)}  |")
-        rows.append(border)
-        return "\n".join(rows) + "\n"
+                rows.append("|  " + _paint(chunk.ljust(width - 6), "33", enabled=color, stream=stream) + "  |")
+        rows.append(_paint(border, "1;31", enabled=color, stream=stream))
+        return banner + "\n".join(rows) + "\n"
 
     lines = list(aliases)
     if not quiet:
@@ -198,13 +207,14 @@ def main(
         if args.batch_csv:
             if args.email is not None:
                 raise ValueError("Do not provide an email argument when using --batch-csv.")
-            with Path(args.batch_csv).open(encoding="utf-8", newline="") as batch_file:
-                rendered = generate_batch_csv(batch_file, labels)
+            with Path(args.batch_csv).open(encoding="utf-8", newline="") as source:
+                rendered = generate_batch_csv(source, labels)
         else:
             if args.email is None:
+                use_color = not args.no_color
                 if not args.quiet:
-                    stdout.write(_paint("EMAIL-EvIL\n", "1;31", enabled=not args.no_color, stream=stdout))
-                stdout.write(_paint("Enter your email: ", "1;33", enabled=not args.no_color, stream=stdout))
+                    stdout.write(_render_banner(color=use_color, stream=stdout))
+                stdout.write(_paint("Enter your email: ", "1;33", enabled=use_color, stream=stdout))
                 email = stdin.readline().strip()
             else:
                 email = args.email
