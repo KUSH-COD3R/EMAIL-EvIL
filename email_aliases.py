@@ -24,6 +24,14 @@ TERMINAL_BANNER = (
     "    |  / .--. \\      Keep your inbox tidy     |\n"
     "     \\ '----'________________________________/\n"
 )
+STARTUP_BANNER = (
+    "   .----.\n"
+    "  / .--. \\
+"
+    " | |  | |  EMAIL-EvIL\n"
+    "  \\ '--' /\n"
+    "   '----'\n"
+)
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -175,7 +183,13 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None, stdo
             with Path(args.batch_csv).open(encoding="utf-8", newline="") as batch_file:
                 rendered = generate_batch_csv(batch_file, resolve_labels(args))
         else:
-            email = args.email if args.email is not None else input("Enter your email: ").strip()
+            if args.email is not None:
+                email = args.email
+            else:
+                if not args.quiet:
+                    stdout.write(STARTUP_BANNER)
+                stdout.write("Enter your email: ")
+                email = stdin.readline().strip()
             aliases = generate_aliases(email, resolve_labels(args))
             rendered = render_aliases(aliases, args.format, args.quiet)
         if args.output:
