@@ -30,9 +30,13 @@ def _paint(text: str, code: str, *, enabled: bool) -> str:
     return f"\033[{code}m{text}\033[0m" if enabled else text
 
 
+def _color_enabled(stream: TextIO, requested: bool = True) -> bool:
+    return requested and getattr(stream, "isatty", lambda: False)() and "NO_COLOR" not in os.environ
+
+
 def _render_terminal_banner(color: bool = True) -> str:
     """Render a fiery dragon splash that fits Termux and narrow terminals."""
-    use_color = color and sys.stdout.isatty() and "NO_COLOR" not in os.environ
+    use_color = color and _color_enabled(sys.stdout)
     width = min(42, max(24, _terminal_width()))
     inside = width - 2
     dragon = r"""
@@ -55,6 +59,7 @@ def _render_terminal_banner(color: bool = True) -> str:
     for index, label in enumerate(title):
         color_code = "1;31" if index < 2 else "1;33"
         lines.append("|" + _paint(label[:inside].center(inside), color_code, enabled=use_color) + "|")
+    lines.append("|" + _paint("one inbox, many lanes"[:inside].center(inside), "33", enabled=use_color) + "|")
     lines.append(_paint(border, "1;31", enabled=use_color))
     return "\n".join(lines) + "\n"
 
@@ -121,7 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-f", "--format", choices=("terminal", "text", "json", "csv"), default="terminal")
     parser.add_argument("-o", "--output", help="Write output to a file.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Hide banner and headings.")
-    parser.add_argument("--no-color", action="store_true", help="Disable ANSI banner colors.")
+    parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -149,11 +154,16 @@ def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: b
         inside = width - 2
         heading = f"YOUR ALIASES ({len(aliases)})"
         border = "+" + "-" * inside + "+"
-        rows = [border, "|" + heading[:inside].center(inside) + "|", border]
+        use_color = color and _color_enabled(sys.stdout)
+        rows = [
+            _paint(border, "1;31", enabled=use_color),
+            "|" + _paint(heading[:inside].center(inside), "1;33", enabled=use_color) + "|",
+            _paint(border, "1;31", enabled=use_color),
+        ]
         for alias in aliases:
             parts = textwrap.wrap(alias, width=max(1, inside - 4), break_long_words=True)
             rows.extend("|  " + part.ljust(inside - 4) + "  |" for part in parts)
-        rows.append(border)
+        rows.append(_paint(border, "1;31", enabled=use_color))
         return _render_terminal_banner(color) + "\n".join(rows) + "\n"
     text = list(aliases)
     if not quiet:
@@ -176,9 +186,10 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None,
                 rendered = generate_batch_csv(source, labels)
         else:
             if args.email is None:
+                use_color = not args.no_color and _color_enabled(stdout)
                 if not args.quiet:
                     stdout.write(_render_terminal_banner(color=not args.no_color))
-                stdout.write("Enter your email: ")
+                stdout.write(_paint("Enter your email: ", "1;33", enabled=use_color))
                 email = stdin.readline().strip()
             else:
                 email = args.email
