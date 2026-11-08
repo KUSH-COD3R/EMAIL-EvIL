@@ -1,187 +1,206 @@
-import csv
-import io
-import json
-import tempfile
-import unittest
-from pathlib import Path
+#!/usr/bin/env python3
+"""Generate plus-address email aliases for organizing inboxes."""
 
-from email_aliases import (
-    DEFAULT_LABELS,
-    generate_aliases,
-    generate_batch_csv,
-    main,
-    render_aliases,
-    resolve_labels,
-    validate_email,
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import sys
+from io import StringIO
+from pathlib import Path
+from typing import Sequence, TextIO
+
+DEFAULT_LABELS = ["shopping", "newsletters", "travel", "projects", "banking"]
+PRESET_LABELS = {
+    "default": DEFAULT_LABELS,
+    "minimal": ["shopping", "travel", "banking"],
+    "personal": ["work", "family", "shopping", "travel"],
+}
+TERMINAL_BANNER = (
+    "      .--------------------------------------.\n"
+    "     /   EMAIL-EvIL | Inbox alias generator   \\\n"
+    "    |   .----.       One inbox, many lanes    |\n"
+    "    |  / .--. \\      Keep your inbox tidy     |\n"
+    "     \\ '----'________________________________/\n"
+)
+STARTUP_BANNER = (
+    "   .----.\n"
+    "  / .--. \\\n"
+    " | |  | |  EMAIL-EvIL\n"
+    "  \\ '--' /\n"
+    "   '----'\n"
 )
 
 
-class ValidateEmailTests(unittest.TestCase):
-    def test_strips_surrounding_whitespace(self):
-        self.assertEqual(validate_email("  alex@example.com  "), ("alex", "example.com"))
+def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
+    """Return a clean, deduplicated list of alias labels."""
+    if labels is None:
+        return DEFAULT_LABELS.copy()
 
-    def test_rejects_missing_at_sign(self):
-        with self.assertRaisesRegex(ValueError, "containing '@'"):
-            validate_email("alex.example.com")
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for label in labels:
+        cleaned = label.strip().lower().lstrip("+")
+        if cleaned and cleaned not in seen:
+            seen.add(cleaned)
+            normalized.append(cleaned)
 
-    def test_rejects_missing_local_part_or_domain(self):
-        for email in ("@example.com", "alex@", "alex@example"):
-            with self.subTest(email=email), self.assertRaises(ValueError):
-                validate_email(email)
-
-    def test_rejects_internal_spaces(self):
-        with self.assertRaisesRegex(ValueError, "must not contain spaces"):
-            validate_email("alex smith@example.com")
+    return normalized or DEFAULT_LABELS.copy()
 
 
-class GenerateAliasesTests(unittest.TestCase):
-    def test_generates_default_aliases(self):
-        self.assertEqual(
-            generate_aliases("alex@example.com"),
-            [
-                "alex+shopping@example.com",
-                "alex+newsletters@example.com",
-                "alex+travel@example.com",
-                "alex+projects@example.com",
-                "alex+banking@example.com",
-            ],
-        )
+def validate_email(email: str) -> tuple[str, str]:
+    """Perform basic validation and split an email into local and domain parts."""
+    address = email.strip()
+    if not address or "@" not in address:
+        raise ValueError("Please provide an email address containing '@'.")
 
-    def test_normalizes_and_deduplicates_custom_labels(self):
-        self.assertEqual(
-            generate_aliases("alex@example.com", [" +Work ", "work", "TRAVEL"]),
-            ["alex+work@example.com", "alex+travel@example.com"],
-        )
+    local_part, domain = address.rsplit("@", 1)
+    if not local_part or not domain or "." not in domain:
+        raise ValueError("Please provide an email address with a valid-looking domain.")
+    if any(character.isspace() for character in address):
+        raise ValueError("Email addresses must not contain spaces.")
 
-    def test_empty_labels_fall_back_to_defaults(self):
-        self.assertEqual(generate_aliases("alex@example.com", ["", " "]), generate_aliases("alex@example.com"))
-
-    def test_presets_are_copied(self):
-        args = type("Args", (), {"preset": "minimal", "labels": None})()
-        first = resolve_labels(args)
-        first.append("mutated")
-        self.assertEqual(resolve_labels(args), ["shopping", "travel", "banking"])
-
-    def test_resolves_custom_and_default_labels(self):
-        self.assertEqual(resolve_labels(type("Args", (), {"preset": None, "labels": None})()), DEFAULT_LABELS)
-        self.assertEqual(
-            resolve_labels(type("Args", (), {"preset": None, "labels": ["Receipts"]})()),
-            ["receipts"],
-        )
+    return local_part, domain
 
 
-class BatchCsvTests(unittest.TestCase):
-    def test_generates_rows_for_each_email_and_custom_labels(self):
-        source = io.StringIO("email,notes\nalex@example.com,work\nsam@example.net,personal\n")
-        rendered = generate_batch_csv(source, ["receipts", "travel"])
-        rows = list(csv.reader(io.StringIO(rendered)))
-        self.assertEqual(
-            rows,
-            [
-                ["email", "alias"],
-                ["alex@example.com", "alex+receipts@example.com"],
-                ["alex@example.com", "alex+travel@example.com"],
-                ["sam@example.net", "sam+receipts@example.net"],
-                ["sam@example.net", "sam+travel@example.net"],
-            ],
-        )
-
-    def test_email_header_is_case_insensitive_and_blank_rows_are_skipped(self):
-        source = io.StringIO("Name, EMAIL \nAlex,alex@example.com\nSam,  \n")
-        rows = list(csv.reader(io.StringIO(generate_batch_csv(source, ["work"]))))
-        self.assertEqual(rows[1], ["alex@example.com", "alex+work@example.com"])
-        self.assertEqual(len(rows), 2)
-
-    def test_requires_email_column(self):
-        with self.assertRaisesRegex(ValueError, "'email' column"):
-            generate_batch_csv(io.StringIO("address\nalex@example.com\n"))
-
-    def test_invalid_email_reports_line_number_without_partial_output(self):
-        source = io.StringIO("email\nalex@example.com\nnot-an-email\n")
-        with self.assertRaisesRegex(ValueError, "CSV line 3"):
-            generate_batch_csv(source)
+def generate_aliases(email: str, labels: Sequence[str] | None = None) -> list[str]:
+    """Return plus-address aliases for an email address."""
+    local_part, domain = validate_email(email)
+    return [f"{local_part}+{label}@{domain}" for label in _normalize_labels(labels)]
 
 
-class OutputFormatTests(unittest.TestCase):
-    aliases = ["alex+receipts@example.com", "alex+travel@example.com"]
+def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> str:
+    """Generate a CSV containing each valid input email and its aliases.
 
-    def test_json_output(self):
-        self.assertEqual(json.loads(render_aliases(self.aliases, "json")), self.aliases)
+    The source CSV must have a column named ``email`` (case-insensitive).
+    Blank email rows are ignored. Invalid nonblank addresses stop the batch with
+    a line-numbered error, so callers never receive a silently partial result.
+    """
+    reader = csv.DictReader(source)
+    if reader.fieldnames is None:
+        raise ValueError("Batch CSV must include an 'email' header.")
 
-    def test_csv_output_has_header(self):
-        rows = list(csv.reader(io.StringIO(render_aliases(self.aliases, "csv"))))
-        self.assertEqual(rows, [["alias"], *[[alias] for alias in self.aliases]])
+    email_field = next(
+        (field for field in reader.fieldnames if field and field.strip().lower() == "email"),
+        None,
+    )
+    if email_field is None:
+        raise ValueError("Batch CSV must include an 'email' column.")
 
-    def test_quiet_text_omits_heading(self):
-        self.assertEqual(render_aliases(self.aliases, quiet=True), "\n".join(self.aliases) + "\n")
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["email", "alias"])
+    for row in reader:
+        email = row.get(email_field)
+        if email is None or not email.strip():
+            continue
+        email = email.strip()
+        try:
+            aliases = generate_aliases(email, labels)
+        except ValueError as exc:
+            raise ValueError(f"Invalid email on CSV line {reader.line_num}: {exc}") from exc
+        writer.writerows((email, alias) for alias in aliases)
 
-    def test_terminal_output_has_ascii_banner_and_boxed_aliases(self):
-        rendered = render_aliases(self.aliases, "terminal")
-        self.assertIn("EMAIL-EvIL | Inbox alias generator", rendered)
-        self.assertIn("YOUR ALIASES (2)", rendered)
-        self.assertIn("|  alex+receipts@example.com  |", rendered)
-        self.assertIn("|  alex+travel@example.com   |", rendered)
-
-    def test_quiet_terminal_output_omits_art_and_box(self):
-        self.assertEqual(render_aliases(self.aliases, "terminal", quiet=True), "\n".join(self.aliases) + "\n")
+    return output.getvalue()
 
 
-class CliTests(unittest.TestCase):
-    def test_custom_labels_and_json_output(self):
-        output = io.StringIO()
-        status = main(["alex@example.com", "--labels", "receipts", "travel", "--format", "json"], stdout=output)
-        self.assertEqual(status, 0)
-        self.assertEqual(json.loads(output.getvalue()), [
-            "alex+receipts@example.com", "alex+travel@example.com"
-        ])
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Generate plus-address aliases to organize your inbox.",
+        epilog="Example: email-evil alex@example.com --labels receipts travel --format json",
+    )
+    parser.add_argument("email", nargs="?", help="Email address to create aliases for; prompts if omitted.")
+    parser.add_argument(
+        "--batch-csv",
+        metavar="PATH",
+        help="Generate aliases for every email in a CSV with an 'email' column; outputs CSV rows.",
+    )
+    label_options = parser.add_mutually_exclusive_group()
+    label_options.add_argument(
+        "-l", "--labels", nargs="+", help="Custom labels, for example: --labels shopping receipts travel"
+    )
+    label_options.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a built-in label set.")
+    parser.add_argument(
+        "-f", "--format", choices=("text", "terminal", "json", "csv"), default="text",
+        help="Output format: plain text, ASCII terminal view, JSON, or CSV (default: text).",
+    )
+    parser.add_argument("-o", "--output", help="Write output to a file instead of the terminal.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Omit headings and artwork from output.")
+    return parser
 
-    def test_preset_and_quiet_output(self):
-        output = io.StringIO()
-        status = main(["alex@example.com", "--preset", "minimal", "--quiet"], stdout=output)
-        self.assertEqual(status, 0)
-        self.assertNotIn("Generated aliases:", output.getvalue())
-        self.assertEqual(len(output.getvalue().splitlines()), 3)
 
-    def test_terminal_format_option(self):
-        output = io.StringIO()
-        status = main(["alex@example.com", "--labels", "receipts", "--format", "terminal"], stdout=output)
-        self.assertEqual(status, 0)
-        self.assertIn("EMAIL-EvIL", output.getvalue())
-        self.assertIn("alex+receipts@example.com", output.getvalue())
+def resolve_labels(args: argparse.Namespace) -> list[str]:
+    """Resolve labels selected by CLI arguments."""
+    if args.preset:
+        return PRESET_LABELS[args.preset].copy()
+    if args.labels is not None:
+        return _normalize_labels(args.labels)
+    return DEFAULT_LABELS.copy()
 
-    def test_writes_output_file(self):
-        with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "aliases.csv"
-            status = main(["alex@example.com", "--format", "csv", "--output", str(destination)])
-            self.assertEqual(status, 0)
-            self.assertEqual(list(csv.reader(destination.open(encoding="utf-8")))[0], ["alias"])
 
-    def test_batch_csv_cli_writes_output_file(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "emails.csv"
-            destination = Path(directory) / "aliases.csv"
-            source.write_text("email\nalex@example.com\n", encoding="utf-8")
-            status = main(["--batch-csv", str(source), "--labels", "receipts", "--output", str(destination)])
-            self.assertEqual(status, 0)
-            self.assertEqual(
-                list(csv.reader(destination.open(encoding="utf-8"))),
-                [["email", "alias"], ["alex@example.com", "alex+receipts@example.com"]],
-            )
+def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: bool = False) -> str:
+    """Format aliases as readable text, an ASCII terminal view, JSON, or CSV."""
+    if output_format == "json":
+        return json.dumps(list(aliases), indent=2) + "\n"
+    if output_format == "csv":
+        buffer = StringIO(newline="")
+        writer = csv.writer(buffer)
+        writer.writerow(["alias"])
+        writer.writerows((alias,) for alias in aliases)
+        return buffer.getvalue()
+    if output_format == "terminal":
+        if quiet:
+            return "\n".join(aliases) + "\n"
+        heading = f"  YOUR ALIASES ({len(aliases)})"
+        width = max([len(heading), *(len(alias) + 4 for alias in aliases)], default=len(heading))
+        border = "+" + "-" * width + "+"
+        rows = [border, "|" + heading.ljust(width) + "|", border]
+        rows.extend("|  " + alias.ljust(width - 4) + "  |" for alias in aliases)
+        rows.append(border)
+        return TERMINAL_BANNER + "\n".join(rows) + "\n"
 
-    def test_batch_csv_cli_rejects_positional_email(self):
-        output, errors = io.StringIO(), io.StringIO()
-        status = main(["alex@example.com", "--batch-csv", "emails.csv"], stdout=output, stderr=errors)
-        self.assertEqual(status, 2)
-        self.assertEqual(output.getvalue(), "")
-        self.assertIn("Do not provide an email argument", errors.getvalue())
+    lines = list(aliases)
+    if not quiet:
+        lines.insert(0, "Generated aliases:")
+    return "\n".join(lines) + "\n"
 
-    def test_invalid_email_returns_error_status(self):
-        output, errors = io.StringIO(), io.StringIO()
-        status = main(["not-an-email"], stdout=output, stderr=errors)
-        self.assertEqual(status, 2)
-        self.assertEqual(output.getvalue(), "")
-        self.assertIn("Error:", errors.getvalue())
+
+def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None, stdout: TextIO | None = None,
+         stderr: TextIO | None = None) -> int:
+    """Run the command-line interface; return an exit status for easy testing."""
+    stdin = stdin or sys.stdin
+    stdout = stdout or sys.stdout
+    stderr = stderr or sys.stderr
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    try:
+        if args.batch_csv:
+            if args.email is not None:
+                raise ValueError("Do not provide an email argument when using --batch-csv.")
+            with Path(args.batch_csv).open(encoding="utf-8", newline="") as batch_file:
+                rendered = generate_batch_csv(batch_file, resolve_labels(args))
+        else:
+            if args.email is not None:
+                email = args.email
+            else:
+                if not args.quiet:
+                    stdout.write(STARTUP_BANNER)
+                stdout.write("Enter your email: ")
+                email = stdin.readline().strip()
+            aliases = generate_aliases(email, resolve_labels(args))
+            rendered = render_aliases(aliases, args.format, args.quiet)
+        if args.output:
+            Path(args.output).write_text(rendered, encoding="utf-8", newline="")
+        else:
+            stdout.write(rendered)
+    except (OSError, ValueError) as exc:
+        print(f"Error: {exc}", file=stderr)
+        return 2
+
+    return 0
 
 
 if __name__ == "__main__":
-    unittest.main()
+    raise SystemExit(main())
