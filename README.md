@@ -1,10 +1,10 @@
 # EMAIL-EvIL
 
-A lightweight Python utility for generating plus-address email aliases and turning one inbox into a high-control, category-based routing system.
+A lightweight Python utility for generating plus-address aliases and putting one inbox under tighter control.
 
 ## What it does
 
-This tool creates aliases like:
+Generate category-ready addresses from one email account:
 
 ```text
 alex+shopping@example.com
@@ -14,45 +14,52 @@ alex+projects@example.com
 alex+banking@example.com
 ```
 
-One inbox. Multiple lanes. Cleaner filtering.
+One inbox. Multiple lanes. No clutter. Use the aliases in sign-ups and filters—where your provider supports plus-addressing.
 
-If your email provider supports plus-addressing, you can route messages by category without creating a pile of extra inboxes.
+## Run it
 
-## Usage
+Run directly with Python 3.10 or later:
 
 ```bash
 python3 email_aliases.py "alex@example.com"
 ```
 
-Example output:
-
-```text
-Generated aliases:
-alex+shopping@example.com
-alex+newsletters@example.com
-alex+travel@example.com
-alex+projects@example.com
-alex+banking@example.com
-```
-
-## Custom labels
-
-Use your own alias labels:
+Or install the command locally:
 
 ```bash
-python3 email_aliases.py "alex@example.com" --labels shopping receipts travel
+python3 -m pip install .
+email-evil "alex@example.com"
 ```
 
-Built-in presets are also available:
+Omit the email argument to be prompted for it. Get the full option list with `email-evil --help`.
+
+## Customize labels
 
 ```bash
-python3 email_aliases.py "alex@example.com" --preset minimal
-python3 email_aliases.py "alex@example.com" --preset personal
+email-evil "alex@example.com" --labels shopping receipts travel
+email-evil "alex@example.com" --preset minimal
+email-evil "alex@example.com" --preset personal
+```
+
+## Choose an output format
+
+Print JSON or CSV to the terminal:
+
+```bash
+email-evil "alex@example.com" --format json
+email-evil "alex@example.com" --format csv
+```
+
+Write results to a file and omit the text heading when piping output:
+
+```bash
+email-evil "alex@example.com" --format csv --output aliases.csv
+email-evil "alex@example.com" --quiet
 ```
 
 ## Tests
 
-Run the built-in unittest suite from the repository root:
+Run the standard-library test suite from the repository root:
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -60,4 +67,4 @@ python3 -m unittest discover -s tests -v
 
 ## Notes
 
-Plus-addressing support varies by provider, but when it works, it gives you a clean way to segment mail and keep your inbox under tighter control.
+EMAIL-EvIL only generates text; it does not send email or contact any service. Plus-addressing support varies by provider.

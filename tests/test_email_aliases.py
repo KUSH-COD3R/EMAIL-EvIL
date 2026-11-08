@@ -1,6 +1,18 @@
+import csv
+import io
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from email_aliases import DEFAULT_LABELS, generate_aliases, resolve_labels, validate_email
+from email_aliases import (
+    DEFAULT_LABELS,
+    generate_aliases,
+    main,
+    render_aliases,
+    resolve_labels,
+    validate_email,
+)
 
 
 class ValidateEmailTests(unittest.TestCase):
@@ -11,21 +23,20 @@ class ValidateEmailTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "containing '@'"):
             validate_email("alex.example.com")
 
-    def test_rejects_missing_local_part(self):
-        with self.assertRaisesRegex(ValueError, "valid email address with a domain"):
-            validate_email("@example.com")
-
-    def test_rejects_missing_domain_or_dot(self):
-        for email in ("alex@", "alex@example"):
+    def test_rejects_missing_local_part_or_domain(self):
+        for email in ("@example.com", "alex@", "alex@example"):
             with self.subTest(email=email), self.assertRaises(ValueError):
                 validate_email(email)
+
+    def test_rejects_internal_spaces(self):
+        with self.assertRaisesRegex(ValueError, "must not contain spaces"):
+            validate_email("alex smith@example.com")
 
 
 class GenerateAliasesTests(unittest.TestCase):
     def test_generates_default_aliases(self):
-        aliases = generate_aliases("alex@example.com")
         self.assertEqual(
-            aliases,
+            generate_aliases("alex@example.com"),
             [
                 "alex+shopping@example.com",
                 "alex+newsletters@example.com",
@@ -36,34 +47,71 @@ class GenerateAliasesTests(unittest.TestCase):
         )
 
     def test_normalizes_and_deduplicates_custom_labels(self):
-        aliases = generate_aliases("alex@example.com", [" +Work ", "work", "TRAVEL"])
         self.assertEqual(
-            aliases,
+            generate_aliases("alex@example.com", [" +Work ", "work", "TRAVEL"]),
             ["alex+work@example.com", "alex+travel@example.com"],
         )
 
     def test_empty_labels_fall_back_to_defaults(self):
         self.assertEqual(generate_aliases("alex@example.com", ["", " "]), generate_aliases("alex@example.com"))
 
-    def test_custom_labels_keep_order(self):
+    def test_presets_are_copied(self):
+        args = type("Args", (), {"preset": "minimal", "labels": None})()
+        first = resolve_labels(args)
+        first.append("mutated")
+        self.assertEqual(resolve_labels(args), ["shopping", "travel", "banking"])
+
+    def test_resolves_custom_and_default_labels(self):
+        self.assertEqual(resolve_labels(type("Args", (), {"preset": None, "labels": None})()), DEFAULT_LABELS)
         self.assertEqual(
-            generate_aliases("alex@example.com", ["receipts", "events"]),
-            ["alex+receipts@example.com", "alex+events@example.com"],
+            resolve_labels(type("Args", (), {"preset": None, "labels": ["Receipts"]})()),
+            ["receipts"],
         )
 
 
-class ResolveLabelsTests(unittest.TestCase):
-    def test_default_labels(self):
-        args = type("Args", (), {"preset": None, "labels": None})()
-        self.assertEqual(resolve_labels(args), DEFAULT_LABELS)
+class OutputFormatTests(unittest.TestCase):
+    aliases = ["alex+receipts@example.com", "alex+travel@example.com"]
 
-    def test_preset_labels(self):
-        args = type("Args", (), {"preset": "minimal", "labels": None})()
-        self.assertEqual(resolve_labels(args), ["shopping", "travel", "banking"])
+    def test_json_output(self):
+        self.assertEqual(json.loads(render_aliases(self.aliases, "json")), self.aliases)
 
-    def test_custom_labels(self):
-        args = type("Args", (), {"preset": None, "labels": ["Receipts"]})()
-        self.assertEqual(resolve_labels(args), ["receipts"])
+    def test_csv_output_has_header(self):
+        rows = list(csv.reader(io.StringIO(render_aliases(self.aliases, "csv"))))
+        self.assertEqual(rows, [["alias"], *[[alias] for alias in self.aliases]])
+
+    def test_quiet_text_omits_heading(self):
+        self.assertEqual(render_aliases(self.aliases, quiet=True), "\n".join(self.aliases) + "\n")
+
+
+class CliTests(unittest.TestCase):
+    def test_custom_labels_and_json_output(self):
+        output = io.StringIO()
+        status = main(["alex@example.com", "--labels", "receipts", "travel", "--format", "json"], stdout=output)
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(output.getvalue()), [
+            "alex+receipts@example.com", "alex+travel@example.com"
+        ])
+
+    def test_preset_and_quiet_output(self):
+        output = io.StringIO()
+        status = main(["alex@example.com", "--preset", "minimal", "--quiet"], stdout=output)
+        self.assertEqual(status, 0)
+        self.assertNotIn("Generated aliases:", output.getvalue())
+        self.assertEqual(len(output.getvalue().splitlines()), 3)
+
+    def test_writes_output_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "aliases.csv"
+            status = main(["alex@example.com", "--format", "csv", "--output", str(destination)])
+            self.assertEqual(status, 0)
+            self.assertEqual(list(csv.reader(destination.open(encoding="utf-8")))[0], ["alias"])
+
+    def test_invalid_email_returns_error_status(self):
+        output, errors = io.StringIO(), io.StringIO()
+        status = main(["not-an-email"], stdout=output, stderr=errors)
+        self.assertEqual(status, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("Error:", errors.getvalue())
 
 
 if __name__ == "__main__":
