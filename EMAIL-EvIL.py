@@ -23,6 +23,9 @@ PRESET_LABELS = {
     "personal": ["work", "family", "shopping", "travel"],
 }
 
+# 30-64-style infernal palette: ember red -> gold -> hellfire orange.
+DRAGON_THEME = ("31", "33", "1;31", "1;33", "38;5;124", "38;5;160", "38;5;208")
+
 
 def _terminal_width() -> int:
     return max(20, shutil.get_terminal_size((80, 24)).columns)
@@ -35,6 +38,10 @@ def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None)
     if enabled and is_tty and "NO_COLOR" not in os.environ:
         return f"\033[{code}m{text}\033[0m"
     return text
+
+
+def _theme_color(index: int, *, default: str = "1;31") -> str:
+    return DRAGON_THEME[index % len(DRAGON_THEME)] if index >= 0 else default
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -146,17 +153,21 @@ def render_aliases(
         content_width = max(1, box_width - 4)
         border = "+" + "-" * box_width + "+"
         rows = [
-            _paint(border, "1;31", enabled=color, stream=stream),
-            "|" + _paint(heading[:box_width].center(box_width), "1;33", enabled=color, stream=stream) + "|",
-            _paint(border, "1;31", enabled=color, stream=stream),
+            _paint(border, _theme_color(0), enabled=color, stream=stream),
+            "|" + _paint(heading[:box_width].center(box_width), _theme_color(1), enabled=color, stream=stream) + "|",
+            _paint(border, _theme_color(2), enabled=color, stream=stream),
         ]
-        for alias in aliases:
+        for index, alias in enumerate(aliases):
             wrapped = textwrap.wrap(
                 alias, width=content_width, break_long_words=True, break_on_hyphens=False
             )
-            rows.extend("|  " + part.ljust(content_width) + "  |" for part in wrapped or [""])
-        rows.append(_paint(border, "1;31", enabled=color, stream=stream))
-        banner = _paint("EMAIL-EvIL\n", "1;31", enabled=color, stream=stream)
+            color_code = _theme_color(index + 3)
+            rows.extend(
+                "|  " + _paint(part.ljust(content_width), color_code, enabled=color, stream=stream) + "  |"
+                for part in wrapped or [""]
+            )
+        rows.append(_paint(border, _theme_color(5), enabled=color, stream=stream))
+        banner = _paint("EMAIL-EvIL\n", _theme_color(6), enabled=color, stream=stream)
         return banner + "\n".join(rows) + "\n"
     lines = list(aliases)
     if not quiet:
@@ -187,8 +198,8 @@ def main(
                 email = args.email
             else:
                 if not args.quiet:
-                    stdout.write(_paint("EMAIL-EvIL\n", "1;31", enabled=not args.no_color, stream=stdout))
-                stdout.write(_paint("Enter your email: ", "1;33", enabled=not args.no_color, stream=stdout))
+                    stdout.write(_paint("EMAIL-EvIL\n", _theme_color(6), enabled=not args.no_color, stream=stdout))
+                stdout.write(_paint("Enter your email: ", _theme_color(1), enabled=not args.no_color, stream=stdout))
                 email = stdin.readline().strip()
             aliases = generate_aliases(email, resolve_labels(args))
             rendered = render_aliases(
