@@ -85,6 +85,8 @@ This project is designed for harmless inbox management and is best used with pro
 - JSON output for automation and scripts
 - Package install via `pip install -e .`
 - Clean, testable Python module structure
+- Built-in preset categories for common alias uses
+- Optional file output and structured JSON export
 
 ## Installation
 
@@ -111,6 +113,14 @@ alex+newsletters@example.com
 alex+travel@example.com
 alex+projects@example.com
 alex+banking@example.com
+```
+
+### Built-in categories
+
+```bash
+email-evil alex@example.com --preset personal
+email-evil alex@example.com --preset business
+email-evil alex@example.com --preset security
 ```
 
 ### Custom labels
@@ -159,7 +169,8 @@ EMAIL-EvIL/
 │   ├── __init__.py
 │   ├── __main__.py
 │   ├── aliases.py
-│   └── cli.py
+│   ├── cli.py
+│   └── presets.py
 ├── tests/
 │   └── test_email_aliases.py
 └── .gitignore

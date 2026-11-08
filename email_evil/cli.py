@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .aliases import generate_aliases
+from .presets import PRESETS
 
 
 def _parse_labels(raw_labels: list[str] | None, comma_labels: str | None) -> list[str]:
@@ -24,6 +25,11 @@ def main(argv: list[str] | None = None) -> int:
         description="Generate plus-address email aliases for inbox organization.",
     )
     parser.add_argument("email", nargs="?", help="Base email address used to generate aliases.")
+    parser.add_argument(
+        "--preset",
+        choices=sorted(PRESETS),
+        help="Use a predefined alias preset.",
+    )
     parser.add_argument(
         "--label",
         action="append",
@@ -47,8 +53,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     email_value = args.email or input("Enter your email: ").strip()
+    labels = _parse_labels(args.label, args.labels)
+    if args.preset:
+        labels = PRESETS[args.preset] + labels
+
     try:
-        aliases = generate_aliases(email_value, _parse_labels(args.label, args.labels))
+        aliases = generate_aliases(email_value, labels)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
