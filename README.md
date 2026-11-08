@@ -65,17 +65,26 @@
 
 # EMAIL-EvIL
 
-A tiny Python tool for generating plus-address email aliases so you can organize inboxes, filter newsletters, and manage personal or business email streams more cleanly.
+EMAIL-EvIL is a small but polished Python package for generating plus-address aliases for inbox organization, filtering, and personal mail hygiene.
 
-This project is intentionally simple and safe: it does not send email, exploit providers, or interact with mail servers. It only transforms an address into valid plus-address variants that your mail provider may support.
+It turns a normal address like `alex@example.com` into aliases such as:
+
+```text
+alex+shopping@example.com
+alex+travel@example.com
+alex+banking@example.com
+```
+
+This project is designed for harmless inbox management and is best used with providers that support plus-addressing.
 
 ## Features
 
-- Generate plus-address aliases from a base email
-- Custom labels for shopping, newsletters, travel, projects, and more
-- CLI support for quick use in scripts and shell workflows
-- JSON or plain-text output for automation
-- Minimal dependencies and easy setup
+- Generate aliases from a base email
+- Support custom labels and predefined defaults
+- Command-line interface for quick use
+- JSON output for automation and scripts
+- Package install via `pip install -e .`
+- Clean, testable Python module structure
 
 ## Installation
 
@@ -87,63 +96,79 @@ source .venv/bin/activate
 python -m pip install -e .
 ```
 
-## Usage
-
-Generate default aliases:
+## Quick Start
 
 ```bash
-email-evil yourname@example.com
-```
-
-Custom labels:
-
-```bash
-email-evil yourname@example.com --label shopping --label travel --label invoices
-```
-
-Use a comma-separated list:
-
-```bash
-email-evil yourname@example.com --labels shopping,newsletters,travel
-```
-
-Output as JSON:
-
-```bash
-email-evil yourname@example.com --format json
-```
-
-Run the script directly:
-
-```bash
-python email_aliases.py
+email-evil alex@example.com
 ```
 
 Example output:
 
 ```text
 Generated aliases:
-yourname+shopping@example.com
-yourname+newsletters@example.com
-yourname+travel@example.com
-yourname+projects@example.com
-yourname+banking@example.com
+alex+shopping@example.com
+alex+newsletters@example.com
+alex+travel@example.com
+alex+projects@example.com
+alex+banking@example.com
 ```
 
-## Example programmatic use
+### Custom labels
+
+```bash
+email-evil alex@example.com --label work --label invoices --label family
+```
+
+### Comma-separated labels
+
+```bash
+email-evil alex@example.com --labels work,finance,travel
+```
+
+### JSON output
+
+```bash
+email-evil alex@example.com --format json
+```
+
+### Write to a file
+
+```bash
+email-evil alex@example.com --output aliases.txt
+```
+
+## Python API
 
 ```python
-from email_aliases import generate_aliases
+from email_evil.aliases import generate_aliases
 
-aliases = generate_aliases("alex@example.com", ["work", "news", "finance"])
+aliases = generate_aliases("alex@example.com", ["work", "newsletters", "travel"])
 print(aliases)
-# ['alex+work@example.com', 'alex+news@example.com', 'alex+finance@example.com']
+# ['alex+work@example.com', 'alex+newsletters@example.com', 'alex+travel@example.com']
+```
+
+## Project layout
+
+```text
+EMAIL-EvIL/
+├── LICENSE
+├── README.md
+├── pyproject.toml
+├── email_aliases.py
+├── email_evil/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── aliases.py
+│   └── cli.py
+├── tests/
+│   └── test_email_aliases.py
+└── .gitignore
 ```
 
 ## Notes
 
-Plus-addressing is supported by some providers and may not work everywhere. This project simply generates valid alias formats for organizations that do support them.
+Plus-addressing support varies by mail provider. This tool simply generates valid alias patterns that many providers accept.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
