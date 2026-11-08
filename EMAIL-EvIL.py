@@ -35,31 +35,31 @@ def _color_enabled(stream: TextIO, requested: bool = True) -> bool:
 
 
 def _render_terminal_banner(color: bool = True) -> str:
-    """Render a fiery dragon splash that fits Termux and narrow terminals."""
+    """Render a compact, sharply defined dragon banner for Termux terminals."""
     use_color = color and _color_enabled(sys.stdout)
     width = min(42, max(24, _terminal_width()))
     inside = width - 2
-    dragon = r"""
-                 /\             /\
-            ____/  \___________/  \____
-           /   _   /  /^^^^^\  \   _   \
-          /___/ \_/  (  o o  )  \_/ \___\
-                 \   \  ^  /   /
-                  \___\___/___/
-                    /  / \  \
-                   /__/   \__\
-""".splitlines()
-    dragon = [line for line in dragon if line.strip()]
+    # Keep every line within the frame so the dragon stays intact on phones.
+    dragon = (
+        r"           /\             /\",
+        r"      ____/  \___________/  \____",
+        r"     /  _   /  /^^^^^\  \   _  \",
+        r"    /__/ \_/  (  o o  )  \_/ \__\",
+        r"             \   ^   /",
+        r"              \_____/",
+        r"          ____/| |\____",
+        r"         /____/   \____\",
+    )
     title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
     lines = [_paint(border, "1;31", enabled=use_color)]
-    for row in dragon:
-        lines.append("|" + _paint(row[:inside].center(inside), "31", enabled=use_color) + "|")
+    for index, row in enumerate(dragon):
+        eye_color = "1;33" if index == 3 else "31"
+        lines.append("|" + _paint(row.center(inside), eye_color, enabled=use_color) + "|")
     lines.append("|" + " " * inside + "|")
     for index, label in enumerate(title):
         color_code = "1;31" if index < 2 else "1;33"
-        lines.append("|" + _paint(label[:inside].center(inside), color_code, enabled=use_color) + "|")
-    lines.append("|" + _paint("one inbox, many lanes"[:inside].center(inside), "33", enabled=use_color) + "|")
+        lines.append("|" + _paint(label.center(inside), color_code, enabled=use_color) + "|")
     lines.append(_paint(border, "1;31", enabled=use_color))
     return "\n".join(lines) + "\n"
 
