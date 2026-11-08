@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Sequence, TextIO
 
 __version__ = "1.0.0"
+
 DEFAULT_LABELS = ["shopping", "newsletters", "travel", "projects", "banking"]
 PRESET_LABELS = {
     "default": DEFAULT_LABELS,
@@ -27,41 +28,13 @@ def _terminal_width() -> int:
     return max(20, shutil.get_terminal_size((80, 24)).columns)
 
 
-def _paint(text: str, code: str, *, enabled: bool) -> str:
-    """Apply ANSI color when supported and not disabled by the user."""
-    return f"\033[{code}m{text}\033[0m" if enabled else text
-
-
-def _color_enabled(stream: TextIO, requested: bool = True) -> bool:
-    return requested and getattr(stream, "isatty", lambda: False)() and "NO_COLOR" not in os.environ
-
-
-def _render_terminal_banner(color: bool = True) -> str:
-    """Render a compact, numeric/symbol dragon banner for Termux terminals."""
-    use_color = color and _color_enabled(sys.stdout)
-    width = min(42, max(24, _terminal_width()))
-    inside = width - 2
-    dragon = (
-        "      7  7  7",
-        "    /\\  0 0  /\\",
-        "   /  \\_^^_//  \",
-        "   (  /|  |\\  )",
-        "    \\_ /  \\ _/",
-        "      /_^^_\\",
-        "       /  \\",
-    )
-    title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
-    border = "+" + "-" * inside + "+"
-    lines = [_paint(border, "1;31", enabled=use_color)]
-    for index, row in enumerate(dragon):
-        color_code = "1;33" if index in (0, 1) else "31"
-        lines.append("|" + _paint(row.center(inside), color_code, enabled=use_color) + "|")
-    lines.append("|" + " " * inside + "|")
-    for index, label in enumerate(title):
-        color_code = "1;31" if index < 2 else "1;33"
-        lines.append("|" + _paint(label.center(inside), color_code, enabled=use_color) + "|")
-    lines.append(_paint(border, "1;31", enabled=use_color))
-    return "\n".join(lines) + "\n"
+def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None) -> str:
+    """Apply ANSI color only when enabled and writing to a supported terminal."""
+    target = stream or sys.stdout
+    is_tty = getattr(target, "isatty", lambda: False)()
+    if enabled and is_tty and "NO_COLOR" not in os.environ:
+        return f"\033[{code}m{text}\033[0m"
+    return text
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -72,8 +45,8 @@ def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
     for label in labels:
         cleaned = label.strip().lower().lstrip("+")
         if cleaned and cleaned not in seen:
-            result.append(cleaned)
             seen.add(cleaned)
+            result.append(cleaned)
     return result or DEFAULT_LABELS.copy()
 
 
@@ -81,31 +54,34 @@ def validate_email(email: str) -> tuple[str, str]:
     address = email.strip()
     if not address or "@" not in address:
         raise ValueError("Please provide an email address containing '@'.")
-    local, domain = address.rsplit("@", 1)
-    if not local or "." not in domain or domain.startswith(".") or domain.endswith("."):
+    local_part, domain = address.rsplit("@", 1)
+    if not local_part or not domain or "." not in domain:
         raise ValueError("Please provide an email address with a valid-looking domain.")
     if any(char.isspace() for char in address):
         raise ValueError("Email addresses must not contain spaces.")
-    return local, domain
+    return local_part, domain
 
 
 def generate_aliases(email: str, labels: Sequence[str] | None = None) -> list[str]:
-    local, domain = validate_email(email)
-    return [f"{local}+{label}@{domain}" for label in _normalize_labels(labels)]
+    local_part, domain = validate_email(email)
+    return [f"{local_part}+{label}@{domain}" for label in _normalize_labels(labels)]
 
 
 def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> str:
     reader = csv.DictReader(source)
-    if not reader.fieldnames:
+    if reader.fieldnames is None:
         raise ValueError("Batch CSV must include an 'email' header.")
-    field = next((name for name in reader.fieldnames if name and name.strip().lower() == "email"), None)
-    if field is None:
+    email_field = next(
+        (field for field in reader.fieldnames if field and field.strip().lower() == "email"),
+        None,
+    )
+    if email_field is None:
         raise ValueError("Batch CSV must include an 'email' column.")
     output = StringIO(newline="")
     writer = csv.writer(output)
     writer.writerow(["email", "alias"])
     for row in reader:
-        email = (row.get(field) or "").strip()
+        email = (row.get(email_field) or "").strip()
         if not email:
             continue
         try:
@@ -117,15 +93,21 @@ def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> s
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate plus-address aliases for your inbox.")
-    parser.add_argument("email", nargs="?", help="Email address; prompts if omitted.")
-    parser.add_argument("--batch-csv", metavar="PATH", help="Read emails from a CSV with an email column.")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-l", "--labels", nargs="+", help="Custom alias labels.")
-    group.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a built-in label set.")
-    parser.add_argument("-f", "--format", choices=("terminal", "text", "json", "csv"), default="terminal")
-    parser.add_argument("-o", "--output", help="Write output to a file.")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Hide banner and headings.")
+    parser = argparse.ArgumentParser(
+        description="Generate plus-address aliases to organize your inbox.",
+        epilog="Example: EMAIL-EvIL.py alex@example.com --labels receipts travel --format json",
+    )
+    parser.add_argument("email", nargs="?", help="Email address to create aliases for; prompts if omitted.")
+    parser.add_argument(
+        "--batch-csv", metavar="PATH",
+        help="Generate aliases for every email in a CSV with an 'email' column.",
+    )
+    label_group = parser.add_mutually_exclusive_group()
+    label_group.add_argument("-l", "--labels", nargs="+", help="Custom alias labels.")
+    label_group.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a built-in label set.")
+    parser.add_argument("-f", "--format", choices=("text", "terminal", "json", "csv"), default="terminal")
+    parser.add_argument("-o", "--output", help="Write output to a file instead of the terminal.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Omit headings and artwork from output.")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
@@ -134,67 +116,84 @@ def build_parser() -> argparse.ArgumentParser:
 def resolve_labels(args: argparse.Namespace) -> list[str]:
     if args.preset:
         return PRESET_LABELS[args.preset].copy()
-    return _normalize_labels(args.labels)
+    if args.labels is not None:
+        return _normalize_labels(args.labels)
+    return DEFAULT_LABELS.copy()
 
 
-def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: bool = False,
-                   *, color: bool = True, stream: TextIO | None = None) -> str:
+def render_aliases(
+    aliases: Sequence[str],
+    output_format: str = "text",
+    quiet: bool = False,
+    *,
+    color: bool = True,
+    stream: TextIO | None = None,
+) -> str:
     if output_format == "json":
         return json.dumps(list(aliases), indent=2) + "\n"
     if output_format == "csv":
-        output = StringIO(newline="")
-        writer = csv.writer(output)
+        buffer = StringIO(newline="")
+        writer = csv.writer(buffer)
         writer.writerow(["alias"])
         writer.writerows((alias,) for alias in aliases)
-        return output.getvalue()
+        return buffer.getvalue()
     if output_format == "terminal":
         if quiet:
             return "\n".join(aliases) + "\n"
-        width = max(20, min(_terminal_width() - 2, 60))
-        inside = width - 2
         heading = f"YOUR ALIASES ({len(aliases)})"
-        border = "+" + "-" * inside + "+"
-        use_color = color and _color_enabled(stream or sys.stdout)
+        terminal_width = _terminal_width()
+        box_width = max(8, min(terminal_width - 2, max(len(heading), 20)))
+        content_width = max(1, box_width - 4)
+        border = "+" + "-" * box_width + "+"
         rows = [
-            _paint(border, "1;31", enabled=use_color),
-            "|" + _paint(heading[:inside].center(inside), "1;33", enabled=use_color) + "|",
-            _paint(border, "1;31", enabled=use_color),
+            _paint(border, "1;31", enabled=color, stream=stream),
+            "|" + _paint(heading[:box_width].center(box_width), "1;33", enabled=color, stream=stream) + "|",
+            _paint(border, "1;31", enabled=color, stream=stream),
         ]
         for alias in aliases:
-            parts = textwrap.wrap(alias, width=max(1, inside - 4), break_long_words=True)
-            rows.extend("|  " + part.ljust(inside - 4) + "  |" for part in parts)
-        rows.append(_paint(border, "1;31", enabled=use_color))
-        return _render_terminal_banner(color) + "\n".join(rows) + "\n"
-    text = list(aliases)
+            wrapped = textwrap.wrap(
+                alias, width=content_width, break_long_words=True, break_on_hyphens=False
+            )
+            rows.extend("|  " + part.ljust(content_width) + "  |" for part in wrapped or [""])
+        rows.append(_paint(border, "1;31", enabled=color, stream=stream))
+        banner = _paint("EMAIL-EvIL\n", "1;31", enabled=color, stream=stream)
+        return banner + "\n".join(rows) + "\n"
+    lines = list(aliases)
     if not quiet:
-        text.insert(0, "Generated aliases:")
-    return "\n".join(text) + "\n"
+        lines.insert(0, "Generated aliases:")
+    return "\n".join(lines) + "\n"
 
 
-def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None,
-         stdout: TextIO | None = None, stderr: TextIO | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    stdin: TextIO | None = None,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+) -> int:
     stdin = stdin or sys.stdin
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
     args = build_parser().parse_args(argv)
+
     try:
-        labels = resolve_labels(args)
         if args.batch_csv:
             if args.email is not None:
-                raise ValueError("Do not provide an email argument with --batch-csv.")
-            with Path(args.batch_csv).open(encoding="utf-8", newline="") as source:
-                rendered = generate_batch_csv(source, labels)
+                raise ValueError("Do not provide an email argument when using --batch-csv.")
+            with Path(args.batch_csv).open(encoding="utf-8", newline="") as batch_file:
+                rendered = generate_batch_csv(batch_file, resolve_labels(args))
         else:
-            if args.email is None:
-                use_color = not args.no_color and _color_enabled(stdout)
-                if not args.quiet:
-                    stdout.write(_render_terminal_banner(color=not args.no_color))
-                stdout.write(_paint("Enter your email: ", "1;33", enabled=use_color))
-                email = stdin.readline().strip()
-            else:
+            if args.email is not None:
                 email = args.email
-            rendered = render_aliases(generate_aliases(email, labels), args.format, args.quiet,
-                                      color=not args.no_color, stream=stdout)
+            else:
+                if not args.quiet:
+                    stdout.write(_paint("EMAIL-EvIL\n", "1;31", enabled=not args.no_color, stream=stdout))
+                stdout.write(_paint("Enter your email: ", "1;33", enabled=not args.no_color, stream=stdout))
+                email = stdin.readline().strip()
+            aliases = generate_aliases(email, resolve_labels(args))
+            rendered = render_aliases(
+                aliases, args.format, args.quiet, color=not args.no_color, stream=stdout
+            )
         if args.output:
             Path(args.output).write_text(rendered, encoding="utf-8", newline="")
         else:
@@ -202,6 +201,7 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None,
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=stderr)
         return 2
+
     return 0
 
 
