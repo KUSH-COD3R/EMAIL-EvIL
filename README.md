@@ -59,6 +59,26 @@ email-evil "alex@example.com" --preset minimal
 email-evil "alex@example.com" --preset personal
 ```
 
+## Batch from a CSV
+
+Create a CSV with an `email` column, then pass it to `--batch-csv`. The batch output is CSV with one row per generated alias, including the source email. Blank email rows are skipped; invalid addresses stop the batch with a line-numbered error.
+
+Input (`emails.csv`):
+
+```csv
+email
+alex@example.com
+sam@example.net
+```
+
+Generate aliases and write the result to a file:
+
+```bash
+email-evil --batch-csv emails.csv --preset minimal --output aliases.csv
+```
+
+The output has `email` and `alias` columns. Batch mode only formats alias addresses; it does not send email or contact providers.
+
 ## Choose an output format
 
 Use the ASCII terminal view for a more polished interactive display, or print machine-readable JSON and CSV:

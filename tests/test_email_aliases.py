@@ -8,6 +8,7 @@ from pathlib import Path
 from email_aliases import (
     DEFAULT_LABELS,
     generate_aliases,
+    generate_batch_csv,
     main,
     render_aliases,
     resolve_labels,
@@ -69,6 +70,38 @@ class GenerateAliasesTests(unittest.TestCase):
         )
 
 
+class BatchCsvTests(unittest.TestCase):
+    def test_generates_rows_for_each_email_and_custom_labels(self):
+        source = io.StringIO("email,notes\nalex@example.com,work\nsam@example.net,personal\n")
+        rendered = generate_batch_csv(source, ["receipts", "travel"])
+        rows = list(csv.reader(io.StringIO(rendered)))
+        self.assertEqual(
+            rows,
+            [
+                ["email", "alias"],
+                ["alex@example.com", "alex+receipts@example.com"],
+                ["alex@example.com", "alex+travel@example.com"],
+                ["sam@example.net", "sam+receipts@example.net"],
+                ["sam@example.net", "sam+travel@example.net"],
+            ],
+        )
+
+    def test_email_header_is_case_insensitive_and_blank_rows_are_skipped(self):
+        source = io.StringIO("Name, EMAIL \nAlex,alex@example.com\nSam,  \n")
+        rows = list(csv.reader(io.StringIO(generate_batch_csv(source, ["work"]))))
+        self.assertEqual(rows[1], ["alex@example.com", "alex+work@example.com"])
+        self.assertEqual(len(rows), 2)
+
+    def test_requires_email_column(self):
+        with self.assertRaisesRegex(ValueError, "'email' column"):
+            generate_batch_csv(io.StringIO("address\nalex@example.com\n"))
+
+    def test_invalid_email_reports_line_number_without_partial_output(self):
+        source = io.StringIO("email\nalex@example.com\nnot-an-email\n")
+        with self.assertRaisesRegex(ValueError, "CSV line 3"):
+            generate_batch_csv(source)
+
+
 class OutputFormatTests(unittest.TestCase):
     aliases = ["alex+receipts@example.com", "alex+travel@example.com"]
 
@@ -122,6 +155,25 @@ class CliTests(unittest.TestCase):
             status = main(["alex@example.com", "--format", "csv", "--output", str(destination)])
             self.assertEqual(status, 0)
             self.assertEqual(list(csv.reader(destination.open(encoding="utf-8")))[0], ["alias"])
+
+    def test_batch_csv_cli_writes_output_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "emails.csv"
+            destination = Path(directory) / "aliases.csv"
+            source.write_text("email\nalex@example.com\n", encoding="utf-8")
+            status = main(["--batch-csv", str(source), "--labels", "receipts", "--output", str(destination)])
+            self.assertEqual(status, 0)
+            self.assertEqual(
+                list(csv.reader(destination.open(encoding="utf-8"))),
+                [["email", "alias"], ["alex@example.com", "alex+receipts@example.com"]],
+            )
+
+    def test_batch_csv_cli_rejects_positional_email(self):
+        output, errors = io.StringIO(), io.StringIO()
+        status = main(["alex@example.com", "--batch-csv", "emails.csv"], stdout=output, stderr=errors)
+        self.assertEqual(status, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("Do not provide an email argument", errors.getvalue())
 
     def test_invalid_email_returns_error_status(self):
         output, errors = io.StringIO(), io.StringIO()

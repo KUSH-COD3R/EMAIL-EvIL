@@ -63,12 +63,52 @@ def generate_aliases(email: str, labels: Sequence[str] | None = None) -> list[st
     return [f"{local_part}+{label}@{domain}" for label in _normalize_labels(labels)]
 
 
+def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> str:
+    """Generate a CSV containing each valid input email and its aliases.
+
+    The source CSV must have a column named ``email`` (case-insensitive).
+    Blank email rows are ignored. Invalid nonblank addresses stop the batch with
+    a line-numbered error, so callers never receive a silently partial result.
+    """
+    reader = csv.DictReader(source)
+    if reader.fieldnames is None:
+        raise ValueError("Batch CSV must include an 'email' header.")
+
+    email_field = next(
+        (field for field in reader.fieldnames if field and field.strip().lower() == "email"),
+        None,
+    )
+    if email_field is None:
+        raise ValueError("Batch CSV must include an 'email' column.")
+
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["email", "alias"])
+    for row in reader:
+        email = row.get(email_field)
+        if email is None or not email.strip():
+            continue
+        email = email.strip()
+        try:
+            aliases = generate_aliases(email, labels)
+        except ValueError as exc:
+            raise ValueError(f"Invalid email on CSV line {reader.line_num}: {exc}") from exc
+        writer.writerows((email, alias) for alias in aliases)
+
+    return output.getvalue()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate plus-address aliases to organize your inbox.",
         epilog="Example: email-evil alex@example.com --labels receipts travel --format json",
     )
     parser.add_argument("email", nargs="?", help="Email address to create aliases for; prompts if omitted.")
+    parser.add_argument(
+        "--batch-csv",
+        metavar="PATH",
+        help="Generate aliases for every email in a CSV with an 'email' column; outputs CSV rows.",
+    )
     label_options = parser.add_mutually_exclusive_group()
     label_options.add_argument(
         "-l", "--labels", nargs="+", help="Custom labels, for example: --labels shopping receipts travel"
@@ -129,9 +169,15 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None, stdo
     args = parser.parse_args(argv)
 
     try:
-        email = args.email if args.email is not None else input("Enter your email: ").strip()
-        aliases = generate_aliases(email, resolve_labels(args))
-        rendered = render_aliases(aliases, args.format, args.quiet)
+        if args.batch_csv:
+            if args.email is not None:
+                raise ValueError("Do not provide an email argument when using --batch-csv.")
+            with Path(args.batch_csv).open(encoding="utf-8", newline="") as batch_file:
+                rendered = generate_batch_csv(batch_file, resolve_labels(args))
+        else:
+            email = args.email if args.email is not None else input("Enter your email: ").strip()
+            aliases = generate_aliases(email, resolve_labels(args))
+            rendered = render_aliases(aliases, args.format, args.quiet)
         if args.output:
             Path(args.output).write_text(rendered, encoding="utf-8", newline="")
         else:
