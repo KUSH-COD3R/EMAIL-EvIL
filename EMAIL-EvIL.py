@@ -39,16 +39,15 @@ def _render_terminal_banner(color: bool = True) -> str:
     use_color = color and _color_enabled(sys.stdout)
     width = min(42, max(24, _terminal_width()))
     inside = width - 2
-    # Keep every line within the frame so the dragon stays intact on phones.
     dragon = (
-        r"           /\             /\",
-        r"      ____/  \___________/  \____",
-        r"     /  _   /  /^^^^^\  \   _  \",
-        r"    /__/ \_/  (  o o  )  \_/ \__\",
-        r"             \   ^   /",
-        r"              \_____/",
-        r"          ____/| |\____",
-        r"         /____/   \____\",
+        "           /\\             /\\",
+        "      ____/  \\___________/  \\____",
+        "     /  _   /  /^^^^^\\  \\   _  \",
+        "    /__/ \\_/  (  o o  )  \\_/ \\__\\",
+        "             \\   ^   /",
+        "              \\_____ /",
+        "          ____/| |\\____",
+        "         /____/   \\____\\",
     )
     title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
@@ -138,7 +137,7 @@ def resolve_labels(args: argparse.Namespace) -> list[str]:
 
 
 def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: bool = False,
-                   *, color: bool = True) -> str:
+                   *, color: bool = True, stream: TextIO | None = None) -> str:
     if output_format == "json":
         return json.dumps(list(aliases), indent=2) + "\n"
     if output_format == "csv":
@@ -154,7 +153,7 @@ def render_aliases(aliases: Sequence[str], output_format: str = "text", quiet: b
         inside = width - 2
         heading = f"YOUR ALIASES ({len(aliases)})"
         border = "+" + "-" * inside + "+"
-        use_color = color and _color_enabled(sys.stdout)
+        use_color = color and _color_enabled(stream or sys.stdout)
         rows = [
             _paint(border, "1;31", enabled=use_color),
             "|" + _paint(heading[:inside].center(inside), "1;33", enabled=use_color) + "|",
@@ -194,7 +193,7 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None,
             else:
                 email = args.email
             rendered = render_aliases(generate_aliases(email, labels), args.format, args.quiet,
-                                      color=not args.no_color)
+                                      color=not args.no_color, stream=stdout)
         if args.output:
             Path(args.output).write_text(rendered, encoding="utf-8", newline="")
         else:
