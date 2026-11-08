@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import shutil
 import sys
 import textwrap
@@ -13,20 +14,14 @@ from io import StringIO
 from pathlib import Path
 from typing import Sequence, TextIO
 
+__version__ = "1.0.0"
+
 DEFAULT_LABELS = ["shopping", "newsletters", "travel", "projects", "banking"]
 PRESET_LABELS = {
     "default": DEFAULT_LABELS,
     "minimal": ["shopping", "travel", "banking"],
     "personal": ["work", "family", "shopping", "travel"],
 }
-STARTUP_BANNER = (
-    "   .----.~~~~~~~~~~~~~~~~~~~~~~.\n"
-    "  / .--.  ╔══════════════════╗\n"
-    " | |  | |  ║  EMAIL-EvIL      ║\n"
-    "  \\ '--'  ║  by KUSH-COD3R  ║\n"
-    "   '----' ╚══════════════════╝\n"
-    "         // one inbox, many lanes\n"
-)
 
 
 def _terminal_width() -> int:
@@ -34,14 +29,39 @@ def _terminal_width() -> int:
     return max(10, shutil.get_terminal_size((80, 24)).columns)
 
 
+def _banner_color(text: str, color_code: str) -> str:
+    """Add color only for interactive terminals; respect NO_COLOR."""
+    if sys.stdout.isatty() and "NO_COLOR" not in os.environ:
+        return f"\033[{color_code}m{text}\033[0m"
+    return text
+
+
 def _render_terminal_banner() -> str:
-    """Render a compact banner that fits narrow Termux and mobile terminals."""
-    width = min(52, _terminal_width())
-    inside = width - 2
-    lines = ("EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
-    border = "+" + "-" * inside + "+"
-    body = ["|" + line[:inside].center(inside) + "|" for line in lines]
-    return "\n".join((border, *body, border, ""))
+    """Render a compact, slightly sinister ASCII banner for Termux/mobile."""
+    width = min(46, max(18, _terminal_width()))
+    inner = width - 2
+    art = (
+        "  .-''''-.  ",
+        " /  .--.  \",
+        "|  (o)(o)  |",
+        "|   \\__/   |",
+        " \\  ____  /",
+        "  '------'  ",
+    )
+    title = ("EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
+    border = "+" + "-" * inner + "+"
+    lines = [border]
+    lines.extend("|" + row[:inner].center(inner) + "|" for row in art)
+    lines.append("|" + " " * inner + "|")
+    lines.extend("|" + row[:inner].center(inner) + "|" for row in title)
+    lines.append(border)
+    banner = "\n".join(lines) + "\n"
+    return _banner_color(banner, "1;31")
+
+
+def _render_startup_banner() -> str:
+    """Return the startup splash with red accents on supported terminals."""
+    return _render_terminal_banner()
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -138,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-o", "--output", help="Write output to a file instead of the terminal.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Omit headings and artwork from output.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
 
@@ -201,7 +222,7 @@ def main(argv: Sequence[str] | None = None, *, stdin: TextIO | None = None, stdo
                 email = args.email
             else:
                 if not args.quiet:
-                    stdout.write(STARTUP_BANNER)
+                    stdout.write(_render_startup_banner())
                 stdout.write("Enter your email: ")
                 email = stdin.readline().strip()
             aliases = generate_aliases(email, resolve_labels(args))
