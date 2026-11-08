@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "EMAIL-EvIL"
+version = "0.1.0"
+description = "Generate plus-address email aliases for inbox organization."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "KUSH-COD3R" }]
+
+dependencies = []
+
+[project.scripts]
+email-evil = "email_aliases:main"
+
+[tool.setuptools]
+py-modules = ["email_aliases"]
