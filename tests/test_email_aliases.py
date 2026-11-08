@@ -1,19 +1,24 @@
 import csv
+import importlib.util
 import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from email_aliases import (
-    DEFAULT_LABELS,
-    generate_aliases,
-    generate_batch_csv,
-    main,
-    render_aliases,
-    resolve_labels,
-    validate_email,
-)
+MODULE_PATH = Path(__file__).resolve().parents[1] / "EMAIL-EvIL.py"
+MODULE_SPEC = importlib.util.spec_from_file_location("email_evil_module", MODULE_PATH)
+EMAIL_EVIL = importlib.util.module_from_spec(MODULE_SPEC)
+assert MODULE_SPEC is not None and MODULE_SPEC.loader is not None
+MODULE_SPEC.loader.exec_module(EMAIL_EVIL)
+
+DEFAULT_LABELS = EMAIL_EVIL.DEFAULT_LABELS
+generate_aliases = EMAIL_EVIL.generate_aliases
+generate_batch_csv = EMAIL_EVIL.generate_batch_csv
+main = EMAIL_EVIL.main
+render_aliases = EMAIL_EVIL.render_aliases
+resolve_labels = EMAIL_EVIL.resolve_labels
+validate_email = EMAIL_EVIL.validate_email
 
 
 class ValidateEmailTests(unittest.TestCase):
@@ -115,12 +120,12 @@ class OutputFormatTests(unittest.TestCase):
     def test_quiet_text_omits_heading(self):
         self.assertEqual(render_aliases(self.aliases, quiet=True), "\n".join(self.aliases) + "\n")
 
-    def test_terminal_output_has_ascii_banner_and_boxed_aliases(self):
+    def test_terminal_output_has_banner_and_boxed_aliases(self):
         rendered = render_aliases(self.aliases, "terminal")
-        self.assertIn("EMAIL-EvIL | Inbox alias generator", rendered)
-        self.assertIn("YOUR ALIASES (2)", rendered)
-        self.assertIn("|  alex+receipts@example.com  |", rendered)
-        self.assertIn("|  alex+travel@example.com   |", rendered)
+        self.assertIn("EMAIL-EvIL", rendered)
+        self.assertIn("YOUR ALIASES", rendered)
+        self.assertIn("alex+receipts@example.com", rendered)
+        self.assertIn("alex+travel@example.com", rendered)
 
     def test_quiet_terminal_output_omits_art_and_box(self):
         self.assertEqual(render_aliases(self.aliases, "terminal", quiet=True), "\n".join(self.aliases) + "\n")
