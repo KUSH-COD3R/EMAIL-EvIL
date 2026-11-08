@@ -1,5 +1,7 @@
 # EMAIL-EvIL
 
+![EMAIL-EvIL banner](assets/email-evil-banner.svg)
+
 A lightweight Python utility for generating plus-address aliases and putting one inbox under tighter control.
 
 ## What it does
