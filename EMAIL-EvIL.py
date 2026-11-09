@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate plus-address email aliases for organizing inboxes."""
+"""Generate tagged email addresses for organizing your own inbox."""
 
 from __future__ import annotations
 
@@ -17,46 +17,17 @@ from typing import Sequence, TextIO
 __version__ = "1.0.0"
 
 DEFAULT_LABELS = [
-    "shopping",
-    "newsletters",
-    "travel",
-    "projects",
-    "banking",
-    "work",
-    "family",
-    "finance",
-    "receipts",
-    "delivery",
-    "health",
-    "utilities",
-    "social",
-    "events",
-    "services",
+    "shopping", "newsletters", "travel", "projects", "banking",
+    "work", "family", "finance", "receipts", "delivery",
+    "health", "utilities", "social", "events", "services",
 ]
 PRESET_LABELS = {
     "default": DEFAULT_LABELS,
     "minimal": ["shopping", "travel", "banking"],
     "personal": ["work", "family", "shopping", "travel"],
-    "expanded": [
-        "shopping",
-        "newsletters",
-        "travel",
-        "projects",
-        "banking",
-        "work",
-        "family",
-        "finance",
-        "receipts",
-        "delivery",
-        "health",
-        "utilities",
-        "social",
-        "events",
-        "services",
-    ],
+    "expanded": DEFAULT_LABELS,
 }
 
-# Compact 3x5 glyphs for the EMAIL-EvIL wordmark.
 _WORDMARK_GLYPHS = {
     "A": (".#.", "#.#", "###", "#.#", "#.#"),
     "E": ("###", "#..", "##.", "#..", "###"),
@@ -81,14 +52,13 @@ def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None)
 
 
 def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
-    """Render EMAIL-EvIL as block-letter ASCII instead of the dragon."""
+    """Render the EMAIL-EvIL inbox-routing wordmark."""
     width = min(70, max(24, _terminal_width()))
     inside = width - 2
     word = "EMAIL-EvIL"
     rows_of_text = [word] if inside >= len(word) * 4 - 1 else ["EMAIL-", "EvIL"]
     border = "+" + "-" * inside + "+"
     lines = [_paint(border, "1;35", enabled=color, stream=stream)]
-
     for text in rows_of_text:
         glyph_rows = [""] * 5
         for index, character in enumerate(text.upper()):
@@ -99,31 +69,12 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
                 glyph_rows[row_index] += glyph_row
         for glyph_row in glyph_rows:
             artwork = glyph_row.replace("#", "█").replace(".", " ")
-            centered = artwork.center(inside)
-            lines.append("|" + _paint(centered[:inside], "1;35", enabled=color, stream=stream) + "|")
+            lines.append("|" + _paint(artwork.center(inside)[:inside], "1;35", enabled=color, stream=stream) + "|")
         lines.append("|" + " " * inside + "|")
-
-    lines.append("|" + _paint("INFERNAL INBOX", "1;31", enabled=color, stream=stream).center(inside) + "|")
+    subtitle = _paint("INBOX ROUTING TOOLKIT", "1;31", enabled=color, stream=stream)
+    lines.append("|" + subtitle.center(inside) + "|")
     lines.append(_paint(border, "1;35", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
-
-
-def _render_command_help(*, color: bool = True, stream: TextIO | None = None) -> str:
-    """Show a compact guide to every supported command-line option."""
-    heading = _paint("COMMANDS", "1;31", enabled=color, stream=stream)
-    commands = (
-        "EMAIL                         Generate aliases for one address",
-        "-l, --labels LABEL...         Set custom labels",
-        "--preset default|minimal|personal|expanded",
-        "-f, --format terminal|text|json|csv",
-        "-o, --output FILE            Save results to a file",
-        "--batch-csv FILE             Generate from a CSV email column",
-        "-q, --quiet                  Hide banner and headings",
-        "--no-color                  Disable terminal colors",
-        "--version                   Show version",
-        "-h, --help                  Show full help and exit",
-    )
-    return heading + "\n" + "\n".join(commands) + "\n\n"
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -152,6 +103,7 @@ def validate_email(email: str) -> tuple[str, str]:
 
 
 def generate_aliases(email: str, labels: Sequence[str] | None = None) -> list[str]:
+    """Generate plus-address routes for an address you own or may use."""
     local, domain = validate_email(email)
     return [f"{local}+{label}@{domain}" for label in _normalize_labels(labels)]
 
@@ -169,33 +121,33 @@ def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> s
 
     output = StringIO(newline="")
     writer = csv.writer(output)
-    writer.writerow(["email", "alias"])
+    writer.writerow(["email", "route"])
     for row in reader:
         email = (row.get(email_field) or "").strip()
         if not email:
             continue
         try:
-            aliases = generate_aliases(email, labels)
+            addresses = generate_aliases(email, labels)
         except ValueError as exc:
             raise ValueError(f"Invalid email on CSV line {reader.line_num}: {exc}") from exc
-        writer.writerows((email, alias) for alias in aliases)
+        writer.writerows((email, address) for address in addresses)
     return output.getvalue()
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Generate plus-address aliases for your inbox.",
+        description="Create tagged email addresses to organize your own inbox.",
         epilog="Example: EMAIL-EvIL.py alex@example.com --labels shopping travel --format json",
     )
-    parser.add_argument("email", nargs="?", help="Email address; prompts if omitted.")
+    parser.add_argument("email", nargs="?", help="Your email address; prompts if omitted.")
     parser.add_argument("--batch-csv", metavar="PATH", help="Read a CSV with an 'email' column.")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("-l", "--labels", nargs="+", help="Custom alias labels.")
-    group.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a preset label pack.")
+    group.add_argument("-l", "--labels", nargs="+", help="Custom address tags.")
+    group.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a tag preset.")
     parser.add_argument("-f", "--format", choices=("terminal", "text", "json", "csv"), default="terminal")
-    parser.add_argument("-o", "--output", help="Write the output to a file.")
+    parser.add_argument("-o", "--output", help="Write the generated routes to a file.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Hide the banner and headings.")
-    parser.add_argument("--no-color", action="store_true", help="Disable ANSI colors.")
+    parser.add_argument("--no-color", action="store_true", help="Disable terminal colors.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -219,8 +171,8 @@ def render_aliases(
     if output_format == "csv":
         output = StringIO(newline="")
         writer = csv.writer(output)
-        writer.writerow(["alias"])
-        writer.writerows((alias,) for alias in aliases)
+        writer.writerow(["route"])
+        writer.writerows((address,) for address in aliases)
         return output.getvalue()
     if output_format == "terminal":
         if quiet:
@@ -229,20 +181,20 @@ def render_aliases(
         width = max(20, min(_terminal_width() - 2, 60))
         inside = width - 2
         border = "+" + "-" * inside + "+"
-        heading = _paint(f"YOUR ALIASES ({len(aliases)})", "1;31", enabled=color, stream=stream)
+        heading = _paint(f"GENERATED ROUTES ({len(aliases)})", "1;31", enabled=color, stream=stream)
         rows = [
             _paint(border, "1;35", enabled=color, stream=stream),
             "|" + heading.center(inside) + "|",
             _paint(border, "1;35", enabled=color, stream=stream),
         ]
-        for alias in aliases:
-            parts = textwrap.wrap(alias, width=max(1, inside - 4), break_long_words=True)
+        for address in aliases:
+            parts = textwrap.wrap(address, width=max(1, inside - 4), break_long_words=True)
             rows.extend("|  " + part.ljust(inside - 4) + "  |" for part in parts)
         rows.append(_paint(border, "1;35", enabled=color, stream=stream))
         return banner + "\n".join(rows) + "\n"
     lines = list(aliases)
     if not quiet:
-        lines.insert(0, "Generated aliases:")
+        lines.insert(0, "Generated email routes:")
     return "\n".join(lines) + "\n"
 
 
@@ -276,7 +228,7 @@ def main(
             if not args.quiet:
                 stdout.write(_render_banner(color=color, stream=stdout))
             while True:
-                stdout.write(_paint("Email (or 'exit'): ", "1;35", enabled=color, stream=stdout))
+                stdout.write(_paint("Your email (or 'exit'): ", "1;35", enabled=color, stream=stdout))
                 stdout.flush()
                 line = stdin.readline()
                 if line == "":
@@ -286,11 +238,8 @@ def main(
                     return 0
                 try:
                     rendered = render_aliases(
-                        generate_aliases(email, labels),
-                        args.format,
-                        args.quiet,
-                        color=color,
-                        stream=stdout,
+                        generate_aliases(email, labels), args.format, args.quiet,
+                        color=color, stream=stdout,
                     )
                 except ValueError as exc:
                     print(f"Error: {exc}", file=stderr)
@@ -301,11 +250,8 @@ def main(
                     stdout.write(rendered)
 
         rendered = render_aliases(
-            generate_aliases(args.email, labels),
-            args.format,
-            args.quiet,
-            color=color,
-            stream=stdout,
+            generate_aliases(args.email, labels), args.format, args.quiet,
+            color=color, stream=stdout,
         )
         if args.output:
             Path(args.output).write_text(rendered, encoding="utf-8", newline="")
