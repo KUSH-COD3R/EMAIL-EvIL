@@ -214,7 +214,7 @@ def main(
                 use_color = not args.no_color
                 if not args.quiet:
                     stdout.write(_render_banner(color=use_color, stream=stdout))
-                prompt = "Enter your email, mortal: "
+                prompt = "ENTER YOUR ADDRESS, MORTAL: "
                 stdout.write(_paint(prompt, "1;31", enabled=use_color, stream=stdout))
                 email = stdin.readline().strip()
             else:
