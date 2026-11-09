@@ -212,33 +212,56 @@ def main(
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
     args = build_parser().parse_args(argv)
+    labels = resolve_labels(args)
+    color = not args.no_color
 
     try:
-        labels = resolve_labels(args)
         if args.batch_csv:
             if args.email is not None:
                 raise ValueError("Do not provide an email argument when using --batch-csv.")
             with Path(args.batch_csv).open(encoding="utf-8", newline="") as source:
                 rendered = generate_batch_csv(source, labels)
-        else:
-            if args.email is None:
-                use_color = not args.no_color
-                if not args.quiet:
-                    stdout.write(_render_banner(color=use_color, stream=stdout))
-                prompt = "ENTER YOUR ADDRESS, MORTAL: "
-                stdout.write(_paint(prompt, "1;31", enabled=use_color, stream=stdout))
-                stdout.flush()
-                email = stdin.readline().strip()
+            if args.output:
+                Path(args.output).write_text(rendered, encoding="utf-8", newline="")
             else:
-                email = args.email
-            rendered = render_aliases(
-                generate_aliases(email, labels),
-                args.format,
-                args.quiet,
-                color=not args.no_color,
-                stream=stdout,
-            )
+                stdout.write(rendered)
+            return 0
 
+        if args.email is None:
+            if not args.quiet:
+                stdout.write(_render_banner(color=color, stream=stdout))
+            while True:
+                stdout.write(_paint("Email (or 'exit'): ", "1;31", enabled=color, stream=stdout))
+                stdout.flush()
+                line = stdin.readline()
+                if line == "":  # EOF exits cleanly for piped/non-interactive input.
+                    return 0
+                email = line.strip()
+                if email.lower() == "exit":
+                    return 0
+                try:
+                    rendered = render_aliases(
+                        generate_aliases(email, labels),
+                        args.format,
+                        args.quiet,
+                        color=color,
+                        stream=stdout,
+                    )
+                except ValueError as exc:
+                    print(f"Error: {exc}", file=stderr)
+                    continue
+                if args.output:
+                    Path(args.output).write_text(rendered, encoding="utf-8", newline="")
+                else:
+                    stdout.write(rendered)
+            
+        rendered = render_aliases(
+            generate_aliases(args.email, labels),
+            args.format,
+            args.quiet,
+            color=color,
+            stream=stdout,
+        )
         if args.output:
             Path(args.output).write_text(rendered, encoding="utf-8", newline="")
         else:
