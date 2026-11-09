@@ -70,14 +70,14 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
             lines.append("|" + _paint(centered[:inside], "1;35", enabled=color, stream=stream) + "|")
         lines.append("|" + " " * inside + "|")
 
-    lines.append("|" + _paint("INFERNAL INBOX", "1;33", enabled=color, stream=stream).center(inside) + "|")
+    lines.append("|" + _paint("INFERNAL INBOX", "1;31", enabled=color, stream=stream).center(inside) + "|")
     lines.append(_paint(border, "1;35", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
 
 
 def _render_command_help(*, color: bool = True, stream: TextIO | None = None) -> str:
     """Show a compact guide to every supported command-line option."""
-    heading = _paint("COMMANDS", "1;33", enabled=color, stream=stream)
+    heading = _paint("COMMANDS", "1;31", enabled=color, stream=stream)
     commands = (
         "EMAIL                         Generate aliases for one address",
         "-l, --labels LABEL...         Set custom labels",
@@ -196,7 +196,7 @@ def render_aliases(
         width = max(20, min(_terminal_width() - 2, 60))
         inside = width - 2
         border = "+" + "-" * inside + "+"
-        heading = _paint(f"YOUR ALIASES ({len(aliases)})", "1;33", enabled=color, stream=stream)
+        heading = _paint(f"YOUR ALIASES ({len(aliases)})", "1;31", enabled=color, stream=stream)
         rows = [
             _paint(border, "1;35", enabled=color, stream=stream),
             "|" + heading.center(inside) + "|",
