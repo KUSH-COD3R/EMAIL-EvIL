@@ -64,7 +64,7 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
 
 
 def _read_email_field(stdin: TextIO, stdout: TextIO) -> str:
-    """Display a narrow infernal box and read the email from the same line."""
+    """Display a direct-entry email box without any visible prompt text."""
     width = max(24, min(56, _terminal_width() - 8))
     inside = width - 2
     border = _paint("+" + "-" * inside + "+", "1;31", enabled=True, stream=stdout)
