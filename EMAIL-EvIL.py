@@ -64,15 +64,19 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
 
 
 def _read_email_field(stdin: TextIO, stdout: TextIO) -> str:
-    """Display an empty boxed field, read the email, and close the box."""
-    width = max(20, min(60, _terminal_width() - 2))
+    """Display a narrow infernal box and read the email from the same line."""
+    width = max(24, min(56, _terminal_width() - 8))
     inside = width - 2
-    border = "+" + "-" * inside + "+"
-    stdout.write(border + "\n| ")
+    border = _paint("+" + "-" * inside + "+", "1;31", enabled=True, stream=stdout)
+    empty = _paint("|" + " " * inside + "|", "1;33", enabled=True, stream=stdout)
+    stdout.write(border + "\n")
+    stdout.write(empty + "\n")
+    stdout.write(border + "\n")
+    stdout.write(_paint("| ", "1;31", enabled=True, stream=stdout))
     stdout.flush()
     email = stdin.readline().strip()
-    remaining = max(0, inside - 2 - len(email))
-    stdout.write(" " * remaining + "|\n" + border + "\n")
+    stdout.write(_paint(" |", "1;31", enabled=True, stream=stdout) + "\n")
+    stdout.write(border + "\n")
     return email
 
 
