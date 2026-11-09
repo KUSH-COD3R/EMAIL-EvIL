@@ -41,13 +41,14 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
     width = min(48, max(28, _terminal_width()))
     inside = width - 2
     dragon = (
-        "        __/\\__             ",
-        "     _/  0  0 \\_         ",
-        "    /  ( ^ ^)  \\        ",
-        "   /_____/ \\_____\\       ",
-        "        /_/  \\_\\        ",
-        "       /_/\\_\\          ",
-        "     __/  /\\  \\__      ",
+        "       __/\\__                 ",
+        "    __/  ==  \\__             ",
+        "  _/  .-''-.  \\_            ",
+        " /  /  0  0 \\  \\           ",
+        "|  |  (^^)  |  |            ",
+        "|  |  __.__ |  |            ",
+        " \\  \\_\\_\\_/_/  /            ",
+        "  `-._/  \\_.-'              ",
     )
     title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
