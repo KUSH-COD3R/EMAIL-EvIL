@@ -226,8 +226,6 @@ def main(
                 if not args.quiet:
                     stdout.write(_render_banner(color=use_color, stream=stdout))
                     stdout.write(_render_command_help(color=use_color, stream=stdout))
-                prompt = "ENTER YOUR ADDRESS, MORTAL: "
-                stdout.write(_paint(prompt, "1;31", enabled=use_color, stream=stdout))
                 email = stdin.readline().strip()
             else:
                 email = args.email
