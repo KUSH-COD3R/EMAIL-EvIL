@@ -16,26 +16,11 @@ from typing import Sequence, TextIO
 
 __version__ = "1.0.0"
 
-DEFAULT_LABELS = [
-    "shopping", "newsletters", "travel", "projects", "banking",
-    "work", "family", "finance", "receipts", "delivery",
-    "health", "utilities", "social", "events", "services",
-]
+DEFAULT_LABELS = ["shopping", "newsletters", "travel", "projects", "banking"]
 PRESET_LABELS = {
     "default": DEFAULT_LABELS,
     "minimal": ["shopping", "travel", "banking"],
     "personal": ["work", "family", "shopping", "travel"],
-    "expanded": DEFAULT_LABELS,
-}
-
-_WORDMARK_GLYPHS = {
-    "A": (".#.", "#.#", "###", "#.#", "#.#"),
-    "E": ("###", "#..", "##.", "#..", "###"),
-    "I": ("###", ".#.", ".#.", ".#.", "###"),
-    "L": ("#..", "#..", "#..", "#..", "###"),
-    "M": ("#.#", "###", "###", "#.#", "#.#"),
-    "V": ("#.#", "#.#", "#.#", "#.#", ".#."),
-    "-": ("...", "...", "###", "...", "..."),
 }
 
 
@@ -52,29 +37,68 @@ def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None)
 
 
 def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
-    """Render the EMAIL-EvIL inbox-routing wordmark."""
-    width = min(70, max(24, _terminal_width()))
+    """Render a cyber-themed personal email security banner."""
+    width = min(42, max(24, _terminal_width()))
     inside = width - 2
-    word = "EMAIL-EvIL"
-    rows_of_text = [word] if inside >= len(word) * 4 - 1 else ["EMAIL-", "EvIL"]
+    dragon = (
+        "          /\\  /\\",
+        "         //\\\\//\\\\",
+        "        (  o  o  )",
+        "     ___/   ^^   \\___",
+        "    /  /|  /\\  |\\  \\ ",
+        "   /__/ |_/  \\_| \\__\\",
+        "       /_/    \\_\\",
+    )
+    title = ("EMAIL SECURITY LAB", "EMAIL-EvIL", "PERSONAL INBOX TOOL")
     border = "+" + "-" * inside + "+"
     lines = [_paint(border, "1;35", enabled=color, stream=stream)]
-    for text in rows_of_text:
-        glyph_rows = [""] * 5
-        for index, character in enumerate(text.upper()):
-            glyph = _WORDMARK_GLYPHS.get(character, ("...",) * 5)
-            for row_index, glyph_row in enumerate(glyph):
-                if index:
-                    glyph_rows[row_index] += " "
-                glyph_rows[row_index] += glyph_row
-        for glyph_row in glyph_rows:
-            artwork = glyph_row.replace("#", "█").replace(".", " ")
-            lines.append("|" + _paint(artwork.center(inside)[:inside], "1;35", enabled=color, stream=stream) + "|")
-        lines.append("|" + " " * inside + "|")
-    subtitle = _paint("INBOX ROUTING TOOLKIT", "1;31", enabled=color, stream=stream)
-    lines.append("|" + subtitle.center(inside) + "|")
+    for index, row in enumerate(dragon):
+        shade = "1;33" if index < 3 else "35"
+        lines.append("|" + _paint(row.center(inside), shade, enabled=color, stream=stream) + "|")
+    lines.append("|" + " " * inside + "|")
+    for index, label in enumerate(title):
+        shade = "1;31" if index == 0 else "1;35"
+        lines.append("|" + _paint(label.center(inside), shade, enabled=color, stream=stream) + "|")
     lines.append(_paint(border, "1;35", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
+
+
+def _render_command_help(*, color: bool = True, stream: TextIO | None = None) -> str:
+    """Show a compact guide to every supported command-line option."""
+    heading = _paint("COMMANDS", "1;33", enabled=color, stream=stream)
+    commands = (
+        "EMAIL                         Generate tagged addresses for your inbox",
+        "-l, --labels LABEL...         Set custom address tags",
+        "--preset default|minimal|personal",
+        "-f, --format terminal|text|json|csv",
+        "-o, --output FILE            Save generated addresses",
+        "--batch-csv FILE             Generate from a CSV email column",
+        "-q, --quiet                  Hide banner and headings",
+        "--no-color                  Disable terminal colors",
+        "--version                   Show version",
+        "-h, --help                  Show full help and exit",
+    )
+    return heading + "\n" + "\n".join(commands) + "\n\n"
+
+
+def _read_email_field(stdin: TextIO, stdout: TextIO) -> str:
+    """Read an email directly in an empty terminal box without a text prompt."""
+    width = max(24, min(56, _terminal_width() - 8))
+    content_width = width - 4
+    border = "+" + "-" * (width - 2) + "+"
+
+    if getattr(stdin, "isatty", lambda: False)() and getattr(stdout, "isatty", lambda: False)():
+        stdout.write(border + "\n| ")
+        stdout.flush()
+        email = stdin.readline().rstrip("\r\n")
+        visible_email = email[:content_width].ljust(content_width)
+        stdout.write(f"\033[1A\r| {visible_email} |\n{border}\n")
+        return email.strip()
+
+    email = stdin.readline().strip()
+    visible_email = email[:content_width].ljust(content_width)
+    stdout.write(f"{border}\n| {visible_email} |\n{border}\n")
+    return email
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -136,7 +160,7 @@ def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> s
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Create tagged email addresses to organize your own inbox.",
+        description="Organize your own inbox with tagged email addresses.",
         epilog="Example: EMAIL-EvIL.py alex@example.com --labels shopping travel --format json",
     )
     parser.add_argument("email", nargs="?", help="Your email address; prompts if omitted.")
@@ -209,50 +233,30 @@ def main(
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
     args = build_parser().parse_args(argv)
-    labels = resolve_labels(args)
-    color = not args.no_color
 
     try:
+        labels = resolve_labels(args)
         if args.batch_csv:
             if args.email is not None:
                 raise ValueError("Do not provide an email argument when using --batch-csv.")
             with Path(args.batch_csv).open(encoding="utf-8", newline="") as source:
                 rendered = generate_batch_csv(source, labels)
-            if args.output:
-                Path(args.output).write_text(rendered, encoding="utf-8", newline="")
+        else:
+            if args.email is None:
+                use_color = not args.no_color
+                if not args.quiet:
+                    stdout.write(_render_banner(color=use_color, stream=stdout))
+                email = _read_email_field(stdin, stdout)
             else:
-                stdout.write(rendered)
-            return 0
+                email = args.email
+            rendered = render_aliases(
+                generate_aliases(email, labels),
+                args.format,
+                args.quiet,
+                color=not args.no_color,
+                stream=stdout,
+            )
 
-        if args.email is None:
-            if not args.quiet:
-                stdout.write(_render_banner(color=color, stream=stdout))
-            while True:
-                stdout.write(_paint("Your email (or 'exit'): ", "1;35", enabled=color, stream=stdout))
-                stdout.flush()
-                line = stdin.readline()
-                if line == "":
-                    return 0
-                email = line.strip()
-                if email.lower() == "exit":
-                    return 0
-                try:
-                    rendered = render_aliases(
-                        generate_aliases(email, labels), args.format, args.quiet,
-                        color=color, stream=stdout,
-                    )
-                except ValueError as exc:
-                    print(f"Error: {exc}", file=stderr)
-                    continue
-                if args.output:
-                    Path(args.output).write_text(rendered, encoding="utf-8", newline="")
-                else:
-                    stdout.write(rendered)
-
-        rendered = render_aliases(
-            generate_aliases(args.email, labels), args.format, args.quiet,
-            color=color, stream=stdout,
-        )
         if args.output:
             Path(args.output).write_text(rendered, encoding="utf-8", newline="")
         else:
