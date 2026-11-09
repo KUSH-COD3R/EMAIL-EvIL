@@ -52,10 +52,9 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
     width = min(70, max(24, _terminal_width()))
     inside = width - 2
     word = "EMAIL-EvIL"
-    # Split the wordmark into balanced rows on very narrow terminals.
     rows_of_text = [word] if inside >= len(word) * 4 - 1 else ["EMAIL-", "EvIL"]
     border = "+" + "-" * inside + "+"
-    lines = [_paint(border, "1;31", enabled=color, stream=stream)]
+    lines = [_paint(border, "1;35", enabled=color, stream=stream)]
 
     for text in rows_of_text:
         glyph_rows = [""] * 5
@@ -68,11 +67,11 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
         for glyph_row in glyph_rows:
             artwork = glyph_row.replace("#", "█").replace(".", " ")
             centered = artwork.center(inside)
-            lines.append("|" + _paint(centered[:inside], "1;31", enabled=color, stream=stream) + "|")
+            lines.append("|" + _paint(centered[:inside], "1;35", enabled=color, stream=stream) + "|")
         lines.append("|" + " " * inside + "|")
 
     lines.append("|" + _paint("INFERNAL INBOX", "1;33", enabled=color, stream=stream).center(inside) + "|")
-    lines.append(_paint(border, "1;31", enabled=color, stream=stream))
+    lines.append(_paint(border, "1;35", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
 
 
@@ -199,14 +198,14 @@ def render_aliases(
         border = "+" + "-" * inside + "+"
         heading = _paint(f"YOUR ALIASES ({len(aliases)})", "1;33", enabled=color, stream=stream)
         rows = [
-            _paint(border, "1;31", enabled=color, stream=stream),
+            _paint(border, "1;35", enabled=color, stream=stream),
             "|" + heading.center(inside) + "|",
-            _paint(border, "1;31", enabled=color, stream=stream),
+            _paint(border, "1;35", enabled=color, stream=stream),
         ]
         for alias in aliases:
             parts = textwrap.wrap(alias, width=max(1, inside - 4), break_long_words=True)
             rows.extend("|  " + part.ljust(inside - 4) + "  |" for part in parts)
-        rows.append(_paint(border, "1;31", enabled=color, stream=stream))
+        rows.append(_paint(border, "1;35", enabled=color, stream=stream))
         return banner + "\n".join(rows) + "\n"
     lines = list(aliases)
     if not quiet:
@@ -244,7 +243,7 @@ def main(
             if not args.quiet:
                 stdout.write(_render_banner(color=color, stream=stdout))
             while True:
-                stdout.write(_paint("Email (or 'exit'): ", "1;31", enabled=color, stream=stdout))
+                stdout.write(_paint("Email (or 'exit'): ", "1;35", enabled=color, stream=stdout))
                 stdout.flush()
                 line = stdin.readline()
                 if line == "":
