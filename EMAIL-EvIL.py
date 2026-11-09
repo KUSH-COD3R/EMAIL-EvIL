@@ -37,24 +37,24 @@ def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None)
 
 
 def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
-    """Render a compact dragon banner sized for mobile terminals."""
+    """Render a compact, tuned dragon banner sized for mobile terminals."""
     width = min(42, max(24, _terminal_width()))
     inside = width - 2
     dragon = (
-        "          /\\  /\\",
-        "         //\\\\//\\\\",
-        "        (  o  o  )",
-        "     ___/   ^^   \\___",
-        "    /  /|  /\\  |\\  \\ ",
-        "   /__/ |_/  \\_| \\__\\",
-        "       /_/    \\_\\",
+        "       /\\                 ",
+        "  ____/  \\____      /\\    ",
+        " /  _   _   _  \\____/  \\   ",
+        "|  (o) (o)  /  _      _  |  ",
+        " \\_____^__/  (o)\\_____/   ",
+        "      /  \\____/  \\        ",
+        "     /__/      \\__\\       ",
     )
     title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
     lines = [_paint(border, "1;31", enabled=color, stream=stream)]
     for index, row in enumerate(dragon):
         shade = "1;33" if index < 3 else "31"
-        lines.append("|" + _paint(row.center(inside), shade, enabled=color, stream=stream) + "|")
+        lines.append("|" + _paint(row[:inside].center(inside), shade, enabled=color, stream=stream) + "|")
     lines.append("|" + " " * inside + "|")
     for index, label in enumerate(title):
         shade = "1;31" if index < 2 else "1;33"
