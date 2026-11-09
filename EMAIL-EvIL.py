@@ -81,26 +81,6 @@ def _render_command_help(*, color: bool = True, stream: TextIO | None = None) ->
     return heading + "\n" + "\n".join(commands) + "\n\n"
 
 
-def _read_email_field(stdin: TextIO, stdout: TextIO) -> str:
-    """Read an email directly in an empty terminal box without a text prompt."""
-    width = max(24, min(56, _terminal_width() - 8))
-    content_width = width - 4
-    border = "+" + "-" * (width - 2) + "+"
-
-    if getattr(stdin, "isatty", lambda: False)() and getattr(stdout, "isatty", lambda: False)():
-        stdout.write(border + "\n| ")
-        stdout.flush()
-        email = stdin.readline().rstrip("\r\n")
-        visible_email = email[:content_width].ljust(content_width)
-        stdout.write(f"\033[1A\r| {visible_email} |\n{border}\n")
-        return email.strip()
-
-    email = stdin.readline().strip()
-    visible_email = email[:content_width].ljust(content_width)
-    stdout.write(f"{border}\n| {visible_email} |\n{border}\n")
-    return email
-
-
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
     if labels is None:
         return DEFAULT_LABELS.copy()
@@ -245,7 +225,10 @@ def main(
                 use_color = not args.no_color
                 if not args.quiet:
                     stdout.write(_render_banner(color=use_color, stream=stdout))
-                email = _read_email_field(stdin, stdout)
+                prompt = "ENTER YOUR ADDRESS, MORTAL: "
+                stdout.write(_paint(prompt, "1;31", enabled=use_color, stream=stdout))
+                stdout.flush()
+                email = stdin.readline().strip()
             else:
                 email = args.email
             rendered = render_aliases(
