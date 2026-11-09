@@ -41,14 +41,13 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
     width = min(48, max(28, _terminal_width()))
     inside = width - 2
     dragon = (
-        "       __/\\__                 ",
-        "    __/  ==  \\__             ",
-        "  _/  .-''-.  \\_            ",
-        " /  /  0  0 \\  \\           ",
-        "|  |  (^^)  |  |            ",
-        "|  |  __.__ |  |            ",
-        " \\  \\_\\_\\_/_/  /            ",
-        "  `-._/  \\_.-'              ",
+        "        __/\\__             ",
+        "     _/  0  0 \\_         ",
+        "    /  ( ^ ^)  \\        ",
+        "   /_____/ \\_____\\       ",
+        "        /_/  \\_\\        ",
+        "       /_/\\_\\          ",
+        "     __/  /\\  \\__      ",
     )
     title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
@@ -62,6 +61,19 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
         lines.append("|" + _paint(label.center(inside), shade, enabled=color, stream=stream) + "|")
     lines.append(_paint(border, "1;31", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
+
+
+def _read_email_field(stdin: TextIO, stdout: TextIO) -> str:
+    """Display an empty boxed field, read the email, and close the box."""
+    width = max(20, min(60, _terminal_width() - 2))
+    inside = width - 2
+    border = "+" + "-" * inside + "+"
+    stdout.write(border + "\n| ")
+    stdout.flush()
+    email = stdin.readline().strip()
+    remaining = max(0, inside - 2 - len(email))
+    stdout.write(" " * remaining + "|\n" + border + "\n")
+    return email
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -205,10 +217,9 @@ def main(
                 rendered = generate_batch_csv(source, labels)
         else:
             if args.email is None:
-                use_color = not args.no_color
                 if not args.quiet:
-                    stdout.write(_render_banner(color=use_color, stream=stdout))
-                email = stdin.readline().strip()
+                    stdout.write(_render_banner(color=not args.no_color, stream=stdout))
+                email = _read_email_field(stdin, stdout)
             else:
                 email = args.email
             rendered = render_aliases(
