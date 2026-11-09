@@ -37,23 +37,23 @@ def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None)
 
 
 def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
-    """Render a compact, tuned dragon banner sized for mobile terminals."""
-    width = min(42, max(24, _terminal_width()))
+    """Render a tuned dragon banner with a darker infernal look."""
+    width = min(48, max(28, _terminal_width()))
     inside = width - 2
     dragon = (
-        "       /\\                 ",
-        "  ____/  \\____      /\\    ",
-        " /  _   _   _  \\____/  \\   ",
-        "|  (o) (o)  /  _      _  |  ",
-        " \\_____^__/  (o)\\_____/   ",
-        "      /  \\____/  \\        ",
-        "     /__/      \\__\\       ",
+        "        __/\\__             ",
+        "     _/  0  0 \\_         ",
+        "    /  ( ^ ^)  \\        ",
+        "   /_____/ \\_____\\       ",
+        "        /_/  \\_\\        ",
+        "       /_/\\_\\          ",
+        "     __/  /\\  \\__      ",
     )
     title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
     border = "+" + "-" * inside + "+"
     lines = [_paint(border, "1;31", enabled=color, stream=stream)]
     for index, row in enumerate(dragon):
-        shade = "1;33" if index < 3 else "31"
+        shade = "1;33" if index < 2 else "31"
         lines.append("|" + _paint(row[:inside].center(inside), shade, enabled=color, stream=stream) + "|")
     lines.append("|" + " " * inside + "|")
     for index, label in enumerate(title):
@@ -61,24 +61,6 @@ def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
         lines.append("|" + _paint(label.center(inside), shade, enabled=color, stream=stream) + "|")
     lines.append(_paint(border, "1;31", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
-
-
-def _render_command_help(*, color: bool = True, stream: TextIO | None = None) -> str:
-    """Show a compact guide to every supported command-line option."""
-    heading = _paint("COMMANDS", "1;33", enabled=color, stream=stream)
-    commands = (
-        "EMAIL                         Generate aliases for one address",
-        "-l, --labels LABEL...         Set custom labels",
-        "--preset default|minimal|personal",
-        "-f, --format terminal|text|json|csv",
-        "-o, --output FILE            Save results to a file",
-        "--batch-csv FILE             Generate from a CSV email column",
-        "-q, --quiet                  Hide banner and headings",
-        "--no-color                  Disable terminal colors",
-        "--version                   Show version",
-        "-h, --help                  Show full help and exit",
-    )
-    return heading + "\n" + "\n".join(commands) + "\n\n"
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -225,7 +207,6 @@ def main(
                 use_color = not args.no_color
                 if not args.quiet:
                     stdout.write(_render_banner(color=use_color, stream=stdout))
-                    stdout.write(_render_command_help(color=use_color, stream=stdout))
                 email = stdin.readline().strip()
             else:
                 email = args.email
