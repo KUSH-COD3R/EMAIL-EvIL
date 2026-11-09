@@ -23,6 +23,17 @@ PRESET_LABELS = {
     "personal": ["work", "family", "shopping", "travel"],
 }
 
+# Compact 3x5 glyphs for the EMAIL-EvIL wordmark.
+_WORDMARK_GLYPHS = {
+    "A": (".#.", "#.#", "###", "#.#", "#.#"),
+    "E": ("###", "#..", "##.", "#..", "###"),
+    "I": ("###", ".#.", ".#.", ".#.", "###"),
+    "L": ("#..", "#..", "#..", "#..", "###"),
+    "M": ("#.#", "###", "###", "#.#", "#.#"),
+    "V": ("#.#", "#.#", "#.#", "#.#", ".#."),
+    "-": ("...", "...", "###", "...", "..."),
+}
+
 
 def _terminal_width() -> int:
     return max(20, shutil.get_terminal_size((80, 24)).columns)
@@ -37,28 +48,30 @@ def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None)
 
 
 def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
-    """Render a compact dragon banner sized for mobile terminals."""
-    width = min(42, max(24, _terminal_width()))
+    """Render EMAIL-EvIL as block-letter ASCII instead of the dragon."""
+    width = min(70, max(24, _terminal_width()))
     inside = width - 2
-    dragon = (
-        "          /\\  /\\",
-        "         //\\\\//\\\\",
-        "        (  o  o  )",
-        "     ___/   ^^   \\___",
-        "    /  /|  /\\  |\\  \\ ",
-        "   /__/ |_/  \\_| \\__\\",
-        "       /_/    \\_\\",
-    )
-    title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
+    word = "EMAIL-EvIL"
+    # Split the wordmark into balanced rows on very narrow terminals.
+    rows_of_text = [word] if inside >= len(word) * 4 - 1 else ["EMAIL-", "EvIL"]
     border = "+" + "-" * inside + "+"
     lines = [_paint(border, "1;31", enabled=color, stream=stream)]
-    for index, row in enumerate(dragon):
-        shade = "1;33" if index < 3 else "31"
-        lines.append("|" + _paint(row.center(inside), shade, enabled=color, stream=stream) + "|")
-    lines.append("|" + " " * inside + "|")
-    for index, label in enumerate(title):
-        shade = "1;31" if index < 2 else "1;33"
-        lines.append("|" + _paint(label.center(inside), shade, enabled=color, stream=stream) + "|")
+
+    for text in rows_of_text:
+        glyph_rows = [""] * 5
+        for index, character in enumerate(text.upper()):
+            glyph = _WORDMARK_GLYPHS.get(character, ("...",) * 5)
+            for row_index, glyph_row in enumerate(glyph):
+                if index:
+                    glyph_rows[row_index] += " "
+                glyph_rows[row_index] += glyph_row
+        for glyph_row in glyph_rows:
+            artwork = glyph_row.replace("#", "█").replace(".", " ")
+            centered = artwork.center(inside)
+            lines.append("|" + _paint(centered[:inside], "1;31", enabled=color, stream=stream) + "|")
+        lines.append("|" + " " * inside + "|")
+
+    lines.append("|" + _paint("INFERNAL INBOX", "1;33", enabled=color, stream=stream).center(inside) + "|")
     lines.append(_paint(border, "1;31", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
 
@@ -234,7 +247,7 @@ def main(
                 stdout.write(_paint("Email (or 'exit'): ", "1;31", enabled=color, stream=stdout))
                 stdout.flush()
                 line = stdin.readline()
-                if line == "":  # EOF exits cleanly for piped/non-interactive input.
+                if line == "":
                     return 0
                 email = line.strip()
                 if email.lower() == "exit":
@@ -254,7 +267,7 @@ def main(
                     Path(args.output).write_text(rendered, encoding="utf-8", newline="")
                 else:
                     stdout.write(rendered)
-            
+
         rendered = render_aliases(
             generate_aliases(args.email, labels),
             args.format,
