@@ -16,11 +16,44 @@ from typing import Sequence, TextIO
 
 __version__ = "1.0.0"
 
-DEFAULT_LABELS = ["shopping", "newsletters", "travel", "projects", "banking"]
+DEFAULT_LABELS = [
+    "shopping",
+    "newsletters",
+    "travel",
+    "projects",
+    "banking",
+    "work",
+    "family",
+    "finance",
+    "receipts",
+    "delivery",
+    "health",
+    "utilities",
+    "social",
+    "events",
+    "services",
+]
 PRESET_LABELS = {
     "default": DEFAULT_LABELS,
     "minimal": ["shopping", "travel", "banking"],
     "personal": ["work", "family", "shopping", "travel"],
+    "expanded": [
+        "shopping",
+        "newsletters",
+        "travel",
+        "projects",
+        "banking",
+        "work",
+        "family",
+        "finance",
+        "receipts",
+        "delivery",
+        "health",
+        "utilities",
+        "social",
+        "events",
+        "services",
+    ],
 }
 
 # Compact 3x5 glyphs for the EMAIL-EvIL wordmark.
@@ -81,7 +114,7 @@ def _render_command_help(*, color: bool = True, stream: TextIO | None = None) ->
     commands = (
         "EMAIL                         Generate aliases for one address",
         "-l, --labels LABEL...         Set custom labels",
-        "--preset default|minimal|personal",
+        "--preset default|minimal|personal|expanded",
         "-f, --format terminal|text|json|csv",
         "-o, --output FILE            Save results to a file",
         "--batch-csv FILE             Generate from a CSV email column",
