@@ -29,38 +29,56 @@ def _terminal_width() -> int:
 
 
 def _paint(text: str, code: str, *, enabled: bool, stream: TextIO | None = None) -> str:
-    if not enabled:
-        return text
+    """Use ANSI colors only for an interactive terminal, respecting NO_COLOR."""
     target = stream or sys.stdout
-    if getattr(target, "isatty", lambda: False)() and "NO_COLOR" not in os.environ:
+    if enabled and "NO_COLOR" not in os.environ and getattr(target, "isatty", lambda: False)():
         return f"\033[{code}m{text}\033[0m"
     return text
 
 
 def _render_banner(color: bool = True, stream: TextIO | None = None) -> str:
-    """Safe terminal banner with a dragon silhouette and warm red/gold colors."""
+    """Render a compact dragon banner sized for mobile terminals."""
     width = min(42, max(24, _terminal_width()))
-    dragon = [
-        "       __/\\__        ",
-        "     _/  0 0 \\_      ",
-        "    /  ( ^ ^)  \\     ",
-        "   /____/ \\____\\     ",
-        "       /_/  \\_\\     ",
-        "       /_/\\_\\       ",
-        "      __/  \\__      ",
-    ]
-    title = ["INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes"]
-    lines: list[str] = []
-    border = "+" + "-" * (width - 2) + "+"
-    lines.append(_paint(border, "1;31", enabled=color, stream=stream))
-    for row in dragon:
-        lines.append("|" + _paint(row[: width - 2].center(width - 2), "31", enabled=color, stream=stream) + "|")
-    lines.append("|" + " " * (width - 2) + "|")
-    for i, label in enumerate(title):
-        code = "1;31" if i < 2 else "1;33"
-        lines.append("|" + _paint(label[: width - 2].center(width - 2), code, enabled=color, stream=stream) + "|")
+    inside = width - 2
+    dragon = (
+        "          /\\  /\\",
+        "         //\\\\//\\\\",
+        "        (  o  o  )",
+        "     ___/   ^^   \\___",
+        "    /  /|  /\\  |\\  \\ ",
+        "   /__/ |_/  \\_| \\__\\",
+        "       /_/    \\_\\",
+    )
+    title = ("INFERNAL INBOX", "EMAIL-EvIL", "by KUSH-COD3R", "one inbox, many lanes")
+    border = "+" + "-" * inside + "+"
+    lines = [_paint(border, "1;31", enabled=color, stream=stream)]
+    for index, row in enumerate(dragon):
+        shade = "1;33" if index < 3 else "31"
+        lines.append("|" + _paint(row.center(inside), shade, enabled=color, stream=stream) + "|")
+    lines.append("|" + " " * inside + "|")
+    for index, label in enumerate(title):
+        shade = "1;31" if index < 2 else "1;33"
+        lines.append("|" + _paint(label.center(inside), shade, enabled=color, stream=stream) + "|")
     lines.append(_paint(border, "1;31", enabled=color, stream=stream))
     return "\n".join(lines) + "\n"
+
+
+def _render_command_help(*, color: bool = True, stream: TextIO | None = None) -> str:
+    """Show a compact guide to every supported command-line option."""
+    heading = _paint("COMMANDS", "1;33", enabled=color, stream=stream)
+    commands = (
+        "EMAIL                         Generate aliases for one address",
+        "-l, --labels LABEL...         Set custom labels",
+        "--preset default|minimal|personal",
+        "-f, --format terminal|text|json|csv",
+        "-o, --output FILE            Save results to a file",
+        "--batch-csv FILE             Generate from a CSV email column",
+        "-q, --quiet                  Hide banner and headings",
+        "--no-color                  Disable terminal colors",
+        "--version                   Show version",
+        "-h, --help                  Show full help and exit",
+    )
+    return heading + "\n" + "\n".join(commands) + "\n\n"
 
 
 def _normalize_labels(labels: Sequence[str] | None) -> list[str]:
@@ -107,7 +125,6 @@ def generate_batch_csv(source: TextIO, labels: Sequence[str] | None = None) -> s
     output = StringIO(newline="")
     writer = csv.writer(output)
     writer.writerow(["email", "alias"])
-
     for row in reader:
         email = (row.get(email_field) or "").strip()
         if not email:
@@ -125,13 +142,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Generate plus-address aliases for your inbox.",
         epilog="Example: EMAIL-EvIL.py alex@example.com --labels shopping travel --format json",
     )
-    parser.add_argument("email", nargs="?", help="Email address to generate aliases for; prompts if omitted.")
+    parser.add_argument("email", nargs="?", help="Email address; prompts if omitted.")
     parser.add_argument("--batch-csv", metavar="PATH", help="Read a CSV with an 'email' column.")
-
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-l", "--labels", nargs="+", help="Custom alias labels.")
     group.add_argument("--preset", choices=sorted(PRESET_LABELS), help="Use a preset label pack.")
-
     parser.add_argument("-f", "--format", choices=("terminal", "text", "json", "csv"), default="terminal")
     parser.add_argument("-o", "--output", help="Write the output to a file.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Hide the banner and headings.")
@@ -156,33 +171,30 @@ def render_aliases(
 ) -> str:
     if output_format == "json":
         return json.dumps(list(aliases), indent=2) + "\n"
-
     if output_format == "csv":
         output = StringIO(newline="")
         writer = csv.writer(output)
         writer.writerow(["alias"])
         writer.writerows((alias,) for alias in aliases)
         return output.getvalue()
-
     if output_format == "terminal":
         if quiet:
             return "\n".join(aliases) + "\n"
         banner = _render_banner(color=color, stream=stream)
         width = max(20, min(_terminal_width() - 2, 60))
-        border = "+" + "-" * width + "+"
-        title = _paint(f"YOUR ALIASES ({len(aliases)})", "1;33", enabled=color, stream=stream)
+        inside = width - 2
+        border = "+" + "-" * inside + "+"
+        heading = _paint(f"YOUR ALIASES ({len(aliases)})", "1;33", enabled=color, stream=stream)
         rows = [
             _paint(border, "1;31", enabled=color, stream=stream),
-            "|" + title.center(width - 2) + "|",
+            "|" + heading.center(inside) + "|",
             _paint(border, "1;31", enabled=color, stream=stream),
         ]
         for alias in aliases:
-            chunks = textwrap.wrap(alias, width=max(1, width - 6), break_long_words=True, break_on_hyphens=False)
-            for chunk in chunks:
-                rows.append("|  " + _paint(chunk.ljust(width - 6), "33", enabled=color, stream=stream) + "  |")
+            parts = textwrap.wrap(alias, width=max(1, inside - 4), break_long_words=True)
+            rows.extend("|  " + part.ljust(inside - 4) + "  |" for part in parts)
         rows.append(_paint(border, "1;31", enabled=color, stream=stream))
         return banner + "\n".join(rows) + "\n"
-
     lines = list(aliases)
     if not quiet:
         lines.insert(0, "Generated aliases:")
@@ -203,7 +215,6 @@ def main(
 
     try:
         labels = resolve_labels(args)
-
         if args.batch_csv:
             if args.email is not None:
                 raise ValueError("Do not provide an email argument when using --batch-csv.")
@@ -214,6 +225,7 @@ def main(
                 use_color = not args.no_color
                 if not args.quiet:
                     stdout.write(_render_banner(color=use_color, stream=stdout))
+                    stdout.write(_render_command_help(color=use_color, stream=stdout))
                 prompt = "ENTER YOUR ADDRESS, MORTAL: "
                 stdout.write(_paint(prompt, "1;31", enabled=use_color, stream=stdout))
                 email = stdin.readline().strip()
@@ -234,7 +246,6 @@ def main(
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=stderr)
         return 2
-
     return 0
 
 
